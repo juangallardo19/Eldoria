@@ -36,5 +36,9 @@ public class AudioManager : MonoBehaviour
     public float GetMusicVolume() => musicSource.volume;
     public float GetSFXVolume()   => sfxSource.volume;
 
+    public void StopMusic()   { if (musicSource != null) musicSource.Stop(); }
+    public void PauseMusic()  { if (musicSource != null) musicSource.Pause(); }
+    public void ResumeMusic() { if (musicSource != null) musicSource.UnPause(); }
+
     public void PlaySFX(AudioClip clip) => sfxSource.PlayOneShot(clip);
 }

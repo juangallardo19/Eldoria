@@ -55,7 +55,7 @@ Controles UI usados: `SelectionControl` (←valor→), `Slider`, `Toggle`.
 | `SaveManager.cs` | Singleton | Carga/guarda partidas en JSON (4 slots) |
 | `MainMenuManager.cs` | — | Botones Play/Options/Quit del menú principal |
 | `SettingsManager.cs` | Observer + State | Pantalla de opciones: 4 pestañas, eventos estáticos |
-| `SlotsScreenManager.cs` | — | UI de selección/creación de partidas |
+| `SlotsScreenManager.cs` | State Machine + Observer | UI de selección/creación de partidas; `_selectedSlot` es el estado, botones globales reaccionan al estado |
 | `KeyRebindUI.cs` | — | Reasignación de teclas con PlayerPrefs |
 | `BackgroundVideoManager.cs` | Singleton | VideoPlayer persistente entre escenas; renderiza a VideoRenderTexture |
 | `SliderFillReveal.cs` | Observer | Efecto "before/after" en sliders: revela imagen sin estirarla. Se añade al Slider junto al componente Slider de Unity. Auto-detecta el Fill Image via `slider.fillRect` antes de desconectarlo. |
@@ -180,6 +180,52 @@ LeftColumn
 BackButton usa posicionamiento manual (sin Layout Group en el padre directo de LeftColumn).
 Los TabButtons van dentro de un hijo `TabGroup` con su propio Vertical Layout Group.
 
+## Patrones de datos utilizados
+- **Array** — `SaveData[4]` en `SlotsScreenManager` para los 4 slots de partida (acceso O(1) por índice; tamaño fijo → array es la estructura correcta, no Lista ni Cola)
+
+## SlotsScreen — arquitectura de botones
+Jerarquía de cada Slot (Slot1..Slot4) dentro de `Canvas/SlotsRow`:
+```
+Slot1
+  ├─ CardButton    ← Button (SpriteSwap) + Image (SlotEmptyNormal, color blanco)
+  │                   Hermano 0: renderiza detrás del texto
+  ├─ EmptyState    ← solo texto/ícono encima; SIN CardBg propio
+  │    └─ QuestionMark (TMP)
+  └─ OccupiedState ← activo cuando hay partida guardada; SIN CardBg propio
+       ├─ LevelText (TMP)
+       ├─ ZoneText  (TMP)
+       └─ TimeText  (TMP)
+```
+
+**Principio de diseño:** CardButton ES la tarjeta visible. Unity gestiona automáticamente hover
+(HighlightedSprite) y press (PressedSprite). Al hacer clic, `EventSystem.SetSelectedGameObject()`
+mantiene el `SelectedSprite` (= hover) de forma persistente, igual que las pestañas de Settings.
+
+**SpriteSwap por estado de slot:**
+- Slot vacío:  Normal=`SlotEmptyNormal`  · Hover=`SlotEmptyHover`  · Press=`SlotEmptyPress`
+- Slot lleno:  Normal=`SlotFilledNormal` · Hover=`SlotFilledHover` · Press=`SlotFilledPress`
+  (cambiados en runtime por `ApplySlotSprites()` en `SlotsScreenManager.Start()`)
+
+**Patrones en `SlotsScreenManager.cs`:**
+- **State Machine** — `_selectedSlot` (int, -1 = ninguno) rastrea el slot activo
+- **Observer** — `RefreshGlobalButtons()` actualiza BORRAR/SELECCIONAR en respuesta al estado
+- Label del botón SELECCIONAR: `"NUEVA PARTIDA"` si slot vacío, `"CONTINUAR"` si slot lleno
+
+**Estructura de datos:** `SaveData[4]` — array fijo de 4 entradas, acceso O(1) por índice.
+No se usan pilas/colas; los slots no tienen semántica LIFO/FIFO.
+
+**Generación de escena:** `Assets/Editor/SlotsSceneSetup.cs`
+- `Eldoria/Setup Slots Scene` — reconstruye todo el Canvas desde cero
+- `Eldoria/Wire All Slots References` — solo recablea refs + sprites sin tocar jerarquía
+
+## SlotsScreen — bug crítico resuelto (2026-05-16)
+**Causa raíz:** `AudioManager.musicSource` no asignado en inspector del MainMenu → `StopMusic()` lanzaba
+`UnassignedReferenceException` → `SlotsScreenManager.Start()` abortaba antes de añadir listeners → todos los botones sin funcionar.
+
+**Fix:** `AudioManager.StopMusic/PauseMusic/ResumeMusic` ahora hacen null-check de `musicSource`.
+
+**Síntoma secundario:** Al jugar SlotsScreen directamente (sin MainMenu), `AudioManager.Instance` era null → null-safe → funcionaba. Al venir de MainMenu, Instance existía pero musicSource=null → crash. Asegurarse de asignar `musicSource` y `sfxSource` en el inspector del AudioManager del MainMenu.
+
 ## Log de progreso
 - **2026-05-11** — Revisión inicial del proyecto. Mejorado `SettingsManager.cs`:
   añadidos mute toggles (música/SFX), VSync toggle, quality dropdown, eventos Observer.
@@ -221,3 +267,11 @@ Los TabButtons van dentro de un hijo `TabGroup` con su propio Vertical Layout Gr
   renderice a textura en lugar de directo a pantalla, permitiendo que `BackgroundVideoDisplay`
   (en Settings) asigne esa textura al RawImage y el video se vea correctamente al navegar
   desde MainMenu → Settings. Escena guardada después de recompilación.
+- **2026-05-16** — Implementada y reescrita escena `SlotsScreen`.
+  · Bug crítico resuelto: `AudioManager.musicSource` no asignado → crash en `SlotsScreenManager.Start()` → todos los botones sin listeners. Fix: `StopMusic/PauseMusic/ResumeMusic` ahora hacen null-check.
+  · Arquitectura final de slots: `CardButton` ES la tarjeta visible — `Button` + `Image` con `SpriteSwap`. Tres estados por sprite set (vacío/lleno): Normal/Hover/Press. Al clic, `EventSystem.SetSelectedGameObject()` mantiene estado hover persistente (igual que pestañas de Settings).
+  · `SlotsScreenManager.cs` patrón State Machine (`_selectedSlot`) + Observer (`RefreshGlobalButtons`). Label SELECCIONAR dinámico: "NUEVA PARTIDA" o "CONTINUAR".
+  · Estructura de datos: `SaveData[4]` array fijo, O(1) por índice.
+  · Ambience Cave Sound Effect en `Canvas/Ambience` AudioSource (loop, volume=0.6).
+  · `SlotsSceneSetup.cs`: menús `Eldoria/Setup Slots Scene` (reconstruye todo) y `Eldoria/Wire All Slots References` (solo recablea).
+  **PENDIENTE:** Asignar `musicSource` y `sfxSource` en el inspector del AudioManager del MainMenu.
