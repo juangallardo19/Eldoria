@@ -181,15 +181,16 @@ public class SlotsScreenManager : MonoBehaviour
         var data = new SaveData { isEmpty = false, slotName = $"Partida {slot + 1}", zoneName = "Inicio" };
         SaveManager.Instance?.Save(slot, data);
         SaveManager.Instance?.SelectSlot(slot);
-        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("Game");
-        else SceneManager.LoadScene("Game");
+        // Nueva partida → intro cinemática primero; ContinueGame va directo al juego
+        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("Intro");
+        else SceneManager.LoadScene("Intro");
     }
 
     private void ContinueGame(int slot)
     {
         SaveManager.Instance?.SelectSlot(slot);
-        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("Game");
-        else SceneManager.LoadScene("Game");
+        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("HV01_Interior");
+        else SceneManager.LoadScene("HV01_Interior");
     }
 
     static string FormatTime(float s)

@@ -20,8 +20,8 @@ el gameplay (plataformeo, biomas, bosses) es trabajo futuro.
 ```
 [MainMenu]
     ├─ Jugar     → [SlotsScreen]  — 4 slots de guardado
-    │                  ├─ Slot vacío  → nueva partida
-    │                  └─ Slot lleno → Continuar | Borrar (con confirmación)
+    │                  ├─ Slot vacío  → [Intro] video cinemático + subtítulos → [Game]
+    │                  └─ Slot lleno → Continuar directo a [Game] | Borrar (con confirmación)
     ├─ Opciones  → [Settings]     — dos columnas: pestañas izq / panel der
     └─ Salir     → modal confirmación
 ```
@@ -32,6 +32,7 @@ el gameplay (plataformeo, biomas, bosses) es trabajo futuro.
 | MainMenu | ✅ Funcional | Video BG loop + música + logo + 3 botones |
 | Settings | 🔧 En progreso | Opciones con 3 pestañas |
 | SlotsScreen | ✅ Funcional | 4 slots de guardado |
+| Intro       | ✅ Implementada | Video cinemático intro + subtítulos + skip |
 | SampleScene | — | Escena de prueba de gameplay |
 
 ## Estructura de Settings (4 pestañas)
@@ -60,9 +61,13 @@ Controles UI usados: `SelectionControl` (←valor→), `Slider`, `Toggle`.
 | `BackgroundVideoManager.cs` | Singleton | VideoPlayer persistente entre escenas; renderiza a VideoRenderTexture |
 | `SliderFillReveal.cs` | Observer | Efecto "before/after" en sliders: revela imagen sin estirarla. Se añade al Slider junto al componente Slider de Unity. Auto-detecta el Fill Image via `slider.fillRect` antes de desconectarlo. |
 | `VideoLoopController.cs` | — | DEPRECADO — reemplazado por BackgroundVideoManager |
-| `PlayerController.cs` | — | Control del personaje (gameplay, WIP) |
+| `PlayerController.cs` | State Machine | Movimiento walk/run (Shift toggle), salto Z (coyote+buffer), dash bloqueado hasta hasDash=true, double jump, wall slide/jump, float. Radio de detección escala-aware. Expone estado para PlayerAnimator |
+| `PlayerAnimator.cs`   | Observer | Lee estado de PlayerController, actualiza parámetros del Animator (Speed, IsGrounded, IsRunning, IsJumping, IsFalling, IsDashing, IsWallSlide, Hurt, Die) |
 | `SaveData.cs` | — | Modelo de datos de partida guardada |
 | `CameraFollow.cs` | — | Cámara sigue al jugador |
+| `IntroVideoManager.cs` | Command + Observer | Reproduce video intro, muestra subtítulos cronometrados, skip manteniendo tecla; al terminar carga "Game" |
+| `SubtitleData.cs` | — | ScriptableObject con entradas {startTime, endTime, text}; crear desde Assets → Create → Eldoria → Subtitle Data |
+| `RoomStructure.cs` | Value Object | Elemento de colisión de sala (Ground/Platform/Wall/Ceiling/OneWay). BoxCollider2D + overlay de gizmos en color por tipo. OneWay auto-añade PlatformEffector2D |
 
 ## Assets en el proyecto Unity (`Assets/UI/Sprites/`)
 | Carpeta | Archivos |
@@ -275,3 +280,98 @@ No se usan pilas/colas; los slots no tienen semántica LIFO/FIFO.
   · Ambience Cave Sound Effect en `Canvas/Ambience` AudioSource (loop, volume=0.6).
   · `SlotsSceneSetup.cs`: menús `Eldoria/Setup Slots Scene` (reconstruye todo) y `Eldoria/Wire All Slots References` (solo recablea).
   **PENDIENTE:** Asignar `musicSource` y `sfxSource` en el inspector del AudioManager del MainMenu.
+- **2026-05-17 (audio)** — Fix definitivo del AudioManager: auto-detección de AudioSources si inspector está vacío, `playOnAwake=false`, `PlayMusic()` explícito. MainMenuManager ahora llama `PlayMusic(menuMusic)` — campo `menuMusic` para asignar el clip en inspector. Cada escena controla su música: MainMenu/Settings = play, SlotsScreen/Intro/Game = stop.
+- **2026-05-17 (gameplay)** — Assets importados: `Assets/Sprites/Kael/` (idle/run/walk/jump/fall/dash/slide/combo/death/hurt), `Assets/Sprites/Escenarios/` (Hub, Montañas, Paisajes, Plataformas), `Assets/Sprites/Enemigos/`. PlayerController reescrito con coyote time, jump buffer, gravedad mejorada, wall slide/jump, expone propiedades de estado. PlayerAnimator nuevo (Observer). GameSceneSetup.cs → `Eldoria/Setup Game Scene` monta HUB-01 (InteriorCasaKael) con Player, colliders, CameraFollow. **PENDIENTE:** (1) Crear layer "Ground" en Project Settings. (2) Crear Animator Controller de Kael en Unity (ver instrucciones abajo). (3) Asignar `menuMusic` en inspector de MainMenuManager. — Implementada escena `Intro` (cinemática de nueva partida).
+  Video: `Assets/UI/Sprites/NewGame/NewGameVideo.mp4`. Sistema de subtítulos con `SubtitleData`
+  ScriptableObject (entradas {startTime, endTime, text}). Skip manteniendo cualquier tecla (~1.2s).
+  `IntroVideoManager.cs` patrones Command (ExitIntro) + Observer (loopPointReached). Editor script
+  `IntroSceneSetup.cs` → menú `Eldoria/Setup Intro Scene`. Flujo: Nueva Partida → Intro → Game;
+  Continuar Partida → Game directo.
+  **PENDIENTE:** Crear asset `SubtitleData` desde Assets→Create→Eldoria→Subtitle Data,
+  rellenar entradas con el guión del locutor y asignarlo al campo `subtitleData` en el inspector
+  de `IntroVideoManager` (en Canvas de la escena Intro).
+- **2026-05-17 (estructuras)** — Implementado sistema de hitboxes visuales para salas.
+  · `RoomStructure.cs` (Value Object): BoxCollider2D + overlay de gizmos en color por tipo
+    (Ground=gris, Platform=azul, Wall=naranja, Ceiling=verde, OneWay=amarillo). OneWay
+    auto-añade PlatformEffector2D. Flag `showOverlayInGame` para debug en builds.
+  · `RoomBuilderWindow.cs` (Editor): menú `Eldoria→Room Builder`. Crea estructuras por tipo,
+    redimensiona vía `BoxCollider2D.size`, snap a grilla de tiles (1 tile = configurable en units).
+    Lista todas las estructuras de la escena con botones Foco/Eliminar.
+  · `GameSceneSetup.cs` actualizado: Ground/WallLeft/WallRight/Platform1-3 ahora llevan
+    `RoomStructure` con su tipo correspondiente.
+  **FLUJO DE USO:** Eldoria→Room Builder → selecciona tipo → "Crear en centro" → mueve en
+  Scene view → en Inspector clic en "Edit Collider" (verde) para redimensionar arrastrando.
+  Snap ALL al Grid para alinear a tiles de 16px (PPU=16 → 1.0 unit/tile).
+- **2026-05-17 (puerta + Kael)** — `DoorExit.cs`: zona trigger en puerta → muestra "[ E ] SALIR"
+  flotante (bobbing sinusoidal) cuando el Player entra, presiona E para cargar la escena destino.
+  `GameSceneSetup` crea `DoorExit_Right` en x=10.5 (puerta derecha de InteriorCasaKael).
+  `KaelSetup.cs` (Editor): menú `Eldoria→Setup Kael (Sprites + Animator)` ejecuta 4 fases:
+  (1) importa todos los PNGs de Kael con PPU=16, Point, Multiple, slice 128×128, Pivot=Bottom;
+  (2) crea AnimationClips en Assets/Animations/Kael/; (3) crea KaelAnimator.controller con
+  8 estados (Idle/Run/Jump/Fall/Dash/WallSlide/Hurt/Death) + transiciones completas;
+  (4) asigna controller al Animator del Player y pone tag "Player".
+  **PENDIENTE MCP Unity:** herramientas desconectadas — reconectar desde Unity para uso directo.
+- **2026-05-17 (Kael wiring + fixes)** — Completado el setup del Player via MCP + edición directa de YAML:
+  · KaelAnimator.controller asignado al Animator del Player (m_Controller, guid ddf5cec5...).
+  · PlayerController: groundCheck/wallCheckL/wallCheckR cableados a los hijos GroundCheck/WallCheckL/WallCheckR.
+  · groundLayer seteado a m_Bits:256 (capa 8 = Ground) en el YAML de la escena.
+  · Player localScale → (2,2,2) para escala doble visible.
+  · `PlayerController.cs` actualizado: guarda `_baseScale` en Awake y lo usa al hacer flip horizontal
+    (`transform.localScale = new Vector3(FacingDir * Abs(_baseScale.x), _baseScale.y, 1f)`)
+    para preservar la escala Y cuando el personaje voltea. **Patrón:** ninguno nuevo; es corrección
+    de bug — la escala base se almacena como Vector3 al inicio (estructura de datos simple).
+  · `moveSpeed` subido de 6 → 10 (tanto en script como en escena).
+  · **Bug fix build:** `TagManager.asset` tenía "Player" en el array de tags personalizados.
+    "Player" es tag built-in de Unity → conflicto "Default GameObject Tag: Player already registered"
+    → build fail con 5 errores. Fix: array de tags personalizados vacío (`tags: []`).
+  · Scripts eliminados (ya no existen): `GameSceneSetup.cs`, `KaelSetup.cs`, `RoomBuilderWindow.cs`.
+  · Animaciones Kael: 13 clips en Assets/Animations/Kael/. KaelAnimator con 12 estados y 11 params.
+- **2026-05-18 (feel + desaparición al saltar)** — Ajustes de velocidad y fix de animación Jump:
+  · `walkSpeed` 6→8, `runSpeed` 10→16, `jumpForce` 14→18, `fallMultiplier` 2.4→2.0, `lowJumpMult` 1.8→1.5.
+    Personaje se siente más rápido y menos pesado. Saltos más altos con caída menos abrupta.
+    Coyote/buffer time: 0.12→0.15 (ventana de salto más generosa).
+  · **Bug desaparición al saltar:** estado Jump en KaelAnimator tenía `m_Motion: {fileID: 0}` (sin clip).
+    Con `m_WriteDefaultValues: 1`, Unity reseteaba el sprite a su valor por defecto (null) → personaje
+    invisible durante el salto. Fix: asignado Jump.anim (guid 909e23af...) al estado Jump.
+    Ídem para Death state: asignado Death.anim (guid a0000001...d).
+    Nota técnica: `update_component` MCP fue necesario para persistir walkSpeed/runSpeed porque
+    `load_scene` auto-guarda el estado in-memory antes de cargar desde disco, sobreescribiendo
+    ediciones directas en el YAML. Patrón de persistencia correcto: `update_component` → `save_scene`.
+- **2026-05-18 (mecánicas de salto avanzadas)** — Tres nuevas mecánicas implementadas en `PlayerController.cs`:
+  · **Caída acelerada (`HandleFastFall`):** presionar ↓ o S mientras `velocity.y < 0` aplica
+    `fastFallAccel=30` hacia abajo cada frame. No actúa si está en suelo, dashing o floating.
+  · **Salto variable (`HandleJumpHold`):** al presionar Z se aplica `jumpMinForce=13`. Manteniendo Z
+    se añade `jumpHoldBoost=30·Δt` hasta alcanzar `jumpForce=18` o agotar `jumpHoldTime=0.3s`.
+    Lanzar Z antes del timer da saltos bajos; mantener da saltos altos. `_jumpHolding` se cancela al
+    soltar Z, tocar suelo, o superar el timer.
+  · **Momentum bloqueado en aire (`_airSpeed`):** al saltar, `_airSpeed` se fija con la velocidad
+    del modo actual (walk/run). En aire, `HandleMovement` usa `_airSpeed` en vez de calcular de nuevo
+    → A/D cambia dirección pero no velocidad. Shift no puede toggle run mode en el aire
+    (guarda condicional `if (IsGrounded)` antes del toggle). Al aterrizar, `_isJumpAirborne = false`
+    restaura el control normal. Wall jump también fija `_airSpeed = wallJumpForce.x`.
+  **Nuevos campos serializados:** `jumpMinForce=13`, `jumpHoldTime=0.3`, `jumpHoldBoost=30`, `fastFallAccel=30`.
+- **2026-05-18 (movimiento + animaciones)** — Corrección completa del sistema de movimiento y animaciones de Kael:
+  · **Bug raíz IsGrounded (fix definitivo):** `Physics2D.OverlapCircle` fallaba porque groundLayer
+    era 0 en runtime (serializado como m_Bits:0) y el GroundCheck estaba demasiado alto para el
+    radio original. Fix: cambio de detección a **`rb.GetContacts(_contacts)`** — lee los contactos
+    reales del motor de física, sin depender de LayerMask ni de posición del GroundCheck.
+    `normal.y > 0.5f` filtra suelos (normal vertical-arriba) de paredes (normal horizontal).
+    Awake ahora hardcodea `groundLayer = 1 << 8` (layer 8 = Ground) sin condicional.
+    `_contacts` es un `ContactPoint2D[8]` reutilizable (sin GC allocation por frame).
+    **Patrón:** ninguno nuevo — es una corrección de arquitectura de detección (polling → evento físico).
+  · **Sistema walk/run:** Eliminado `moveSpeed`, añadidos `walkSpeed=6` y `runSpeed=10`.
+    `_runningMode` (bool privado): un tap de Shift lo activa/desactiva. Velocidad = `_runningMode ? runSpeed : walkSpeed`.
+    `IsRunning = IsGrounded && moving && _runningMode`. Sin run mode = camina por defecto.
+  · **Dash bloqueado por progresión:** `hasDash=false` (habilidad tardía). `HandleDash` hace early return
+    si `!hasDash`. Shift es ahora el toggle de run; Dash también usa Shift pero nunca llega a activarse.
+  · **Tecla de salto:** cambiada de Space → Z (en `jumpBufferCounter` y `ApplyBetterGravity`).
+  · **PlayerAnimator:** añadido parámetro `IsRunning` (Bool) — hash pre-calculado, set en Update.
+  · **KaelAnimator.controller:** añadido parámetro `IsRunning` (Bool, tipo 4). Walk state: asignado
+    Walk.anim (guid a0000001b0000002c0000003d0000004). Nuevas transiciones:
+    - 200020: Idle→Walk (Speed>0.1 AND IsRunning=false)
+    - 200021: Walk→Idle (Speed<0.1)
+    - 200022: Walk→Run (IsRunning=true AND Speed>0.1)
+    - 200023: Run→Walk (IsRunning=false AND Speed>0.1)
+    - 200024: Fall→Walk (IsGrounded=true AND Speed>0.1 AND IsRunning=false)
+    Modificadas: Idle→Run (200010) + Fall→Run (200013) ahora exigen IsRunning=true.
+    Fall→Idle (200012) conserva IsGrounded=true (correcto una vez el bug de detección está resuelto).

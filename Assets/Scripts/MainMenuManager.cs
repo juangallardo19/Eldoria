@@ -13,6 +13,9 @@ public class MainMenuManager : MonoBehaviour
     [SerializeField] private Button quitYesButton;
     [SerializeField] private Button quitNoButton;
 
+    [Header("Música del menú")]
+    [SerializeField] private AudioClip menuMusic;
+
     void Start()
     {
         if (quitConfirmPanel != null) quitConfirmPanel.SetActive(false);
@@ -22,6 +25,9 @@ public class MainMenuManager : MonoBehaviour
         if (quitButton)    quitButton   .onClick.AddListener(OnQuit);
         if (quitYesButton) quitYesButton.onClick.AddListener(OnQuitConfirm);
         if (quitNoButton)  quitNoButton .onClick.AddListener(OnQuitCancel);
+
+        // Solo el MainMenu inicia la música; el resto de escenas la detienen
+        AudioManager.Instance?.PlayMusic(menuMusic);
     }
 
     private void OnPlay()    => SceneFader.Instance.LoadScene("SlotsScreen");

@@ -1,10 +1,14 @@
 using UnityEngine;
 
+// Singleton — persiste entre escenas (DontDestroyOnLoad).
+// Gestiona volumen de música y SFX. Cada escena decide si llama PlayMusic() o StopMusic().
+// Si musicSource/sfxSource no están asignados en el inspector, se auto-detectan por orden
+// entre los AudioSource hijos del GameObject (primero=música, segundo=SFX).
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
 
-    [Header("Sources")]
+    [Header("Sources (se auto-detectan si quedan vacíos)")]
     [SerializeField] private AudioSource musicSource;
     [SerializeField] private AudioSource sfxSource;
 
@@ -17,28 +21,47 @@ public class AudioManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        musicSource.volume = PlayerPrefs.GetFloat(MusicVolumeKey, 1f);
-        sfxSource.volume   = PlayerPrefs.GetFloat(SFXVolumeKey,   1f);
+        // Auto-detección: si el inspector dejó los campos vacíos los llenamos aquí
+        var sources = GetComponentsInChildren<AudioSource>();
+        if (musicSource == null && sources.Length > 0) musicSource = sources[0];
+        if (sfxSource   == null && sources.Length > 1) sfxSource   = sources[1];
+
+        // playOnAwake = false: el script controla cuándo empieza la música
+        if (musicSource != null) { musicSource.playOnAwake = false; musicSource.volume = PlayerPrefs.GetFloat(MusicVolumeKey, 1f); }
+        if (sfxSource   != null) { sfxSource  .playOnAwake = false; sfxSource  .volume = PlayerPrefs.GetFloat(SFXVolumeKey,   1f); }
     }
 
-    public void SetMusicVolume(float volume)
+    // ── Control de música ─────────────────────────────────────────────────
+    public void PlayMusic(AudioClip clip = null)
     {
-        musicSource.volume = volume;
-        PlayerPrefs.SetFloat(MusicVolumeKey, volume);
+        if (musicSource == null) return;
+        if (clip != null && musicSource.clip != clip)
+        {
+            musicSource.clip = clip;
+            musicSource.loop = true;
+        }
+        if (!musicSource.isPlaying) musicSource.Play();
     }
-
-    public void SetSFXVolume(float volume)
-    {
-        sfxSource.volume = volume;
-        PlayerPrefs.SetFloat(SFXVolumeKey, volume);
-    }
-
-    public float GetMusicVolume() => musicSource.volume;
-    public float GetSFXVolume()   => sfxSource.volume;
 
     public void StopMusic()   { if (musicSource != null) musicSource.Stop(); }
     public void PauseMusic()  { if (musicSource != null) musicSource.Pause(); }
     public void ResumeMusic() { if (musicSource != null) musicSource.UnPause(); }
 
-    public void PlaySFX(AudioClip clip) => sfxSource.PlayOneShot(clip);
+    // ── Control de volumen ────────────────────────────────────────────────
+    public void SetMusicVolume(float volume)
+    {
+        if (musicSource != null) musicSource.volume = volume;
+        PlayerPrefs.SetFloat(MusicVolumeKey, volume);
+    }
+
+    public void SetSFXVolume(float volume)
+    {
+        if (sfxSource != null) sfxSource.volume = volume;
+        PlayerPrefs.SetFloat(SFXVolumeKey, volume);
+    }
+
+    public float GetMusicVolume() => musicSource != null ? musicSource.volume : PlayerPrefs.GetFloat(MusicVolumeKey, 1f);
+    public float GetSFXVolume()   => sfxSource   != null ? sfxSource  .volume : PlayerPrefs.GetFloat(SFXVolumeKey,   1f);
+
+    public void PlaySFX(AudioClip clip) { if (sfxSource != null && clip != null) sfxSource.PlayOneShot(clip); }
 }

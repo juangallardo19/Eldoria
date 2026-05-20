@@ -17,4 +17,16 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/SlotsScreen.unity
     guid: ba8fd56c49c85354d993545266c60d94
+  - enabled: 1
+    path: Assets/Scenes/Intro.unity
+    guid: 11e67455f54d82c448e76744cfb0e8b9
+  - enabled: 1
+    path: Assets/Scenes/HV01_Interior.unity
+    guid: 1f6e5a6680bde9a4a9cfb4f5252d9189
+  - enabled: 1
+    path: Assets/Scenes/HubCentral/HV01_Exterior.unity
+    guid: b0977112b55aa6145a4826db75d163dd
+  - enabled: 1
+    path: Assets/Scenes/HubCentral/HV01_Exterior.unity
+    guid: b0977112b55aa6145a4826db75d163dd
   m_configObjects: {}
