@@ -10,8 +10,10 @@ public class DoorExit : MonoBehaviour
 {
     [Header("Destino")]
     [SerializeField] private string targetScene = "HV01_Exterior";
+    [SerializeField] private string spawnId     = "";   // ID del SpawnPoint en la escena destino
 
     [Header("Label flotante")]
+    [SerializeField] private string labelText      = "[ E ]  SALIR";
     [SerializeField] private Transform labelTransform;
     [SerializeField] private TMP_FontAsset labelFont;
     [SerializeField] private float bobAmplitude = 0.25f;
@@ -74,6 +76,9 @@ public class DoorExit : MonoBehaviour
     {
         if (string.IsNullOrEmpty(targetScene)) return;
 
+        if (!string.IsNullOrEmpty(spawnId))
+            PlayerSpawnManager.NextSpawnId = spawnId;
+
         if (SceneFader.Instance != null)
             SceneFader.Instance.LoadScene(targetScene);
         else
@@ -108,7 +113,7 @@ public class DoorExit : MonoBehaviour
         textRT.offsetMax = Vector2.zero;
 
         var tmp               = textGO.AddComponent<TextMeshProUGUI>();
-        tmp.text              = "[ E ]  SALIR";
+        tmp.text              = labelText;
         tmp.fontSize          = 36f;
         tmp.alignment         = TextAlignmentOptions.Center;
         tmp.color             = Color.white;

@@ -34,6 +34,7 @@ public class DayCycleController : MonoBehaviour
     // ─────────────────────────────────────────────────────────────────────────
     void Start()
     {
+        AutoFindChildren();
         TryFindPlayer();
         InitAlphas();
     }
@@ -51,6 +52,15 @@ public class DayCycleController : MonoBehaviour
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
+    // Si los campos no están asignados en el Inspector, busca hijos por nombre convencional.
+    private void AutoFindChildren()
+    {
+        if (bgNight == null) { var t = transform.Find("BG_Noche");    if (t) bgNight = t.GetComponent<SpriteRenderer>(); }
+        if (bgDawn  == null) { var t = transform.Find("BG_Amanecer"); if (t) bgDawn  = t.GetComponent<SpriteRenderer>(); }
+        if (bgDay   == null) { var t = transform.Find("BG_Dia");      if (t) bgDay   = t.GetComponent<SpriteRenderer>(); }
+        if (bgDusk  == null) { var t = transform.Find("BG_Anochecer");if (t) bgDusk  = t.GetComponent<SpriteRenderer>(); }
+    }
+
     private void InitAlphas()
     {
         SetAlpha(bgNight,  1f);

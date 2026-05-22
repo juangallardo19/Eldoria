@@ -8,12 +8,15 @@ using UnityEngine.SceneManagement;
 public class SceneBoundary : MonoBehaviour
 {
     [SerializeField] private string targetScene;
+    [SerializeField] private string spawnId = "default";
 
     void Awake() => GetComponent<BoxCollider2D>().isTrigger = true;
 
     void OnTriggerEnter2D(Collider2D other)
     {
         if (!other.CompareTag("Player")) return;
+
+        PlayerSpawnManager.NextSpawnId = spawnId;
 
         if (SceneFader.Instance != null)
             SceneFader.Instance.LoadScene(targetScene);

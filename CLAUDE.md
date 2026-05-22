@@ -16,6 +16,23 @@ el gameplay (plataformeo, biomas, bosses) es trabajo futuro.
 | `C:\Users\juang\OneDrive\Documentos\Universidad\DisenoDeInterfaces\Juego\assets\` | Assets crudos (Aseprite, MP4, audio) |
 | `C:\Users\juang\OneDrive\Documentos\Universidad\DisenoDeInterfaces\Juego\eldoria\` | Build compilado del juego |
 
+## Sprites de Escenarios (`Assets/Sprites/Escenarios/`)
+> **BUSCAR SIEMPRE AQUÍ** cuando necesites fondos, cielos o plataformas de escenas de juego.
+
+| Carpeta | Archivos | Uso |
+|---------|----------|-----|
+| `Hub/` | `CasaKael.png`, `InteriorCasaKael.png`, `HubCentral.png`, `HubCentralInterior.png`, `Hub03Interior.png`, **`hub04.png`**, `hub05.png`, `hub06.png`, `Casas2.png` | Fondos de salas del Hub. `hub04/05/06.png` = fondos de Zona A/B/C |
+| `Montanas/` | `MTN01afueras.png`, `MTN01Interior.png`, `MTN02-12.png`, `AfuerasPreEntrada.png`, `PreMTN10-12.png` | Fondos bioma Montañas |
+| `Paisajes/Hub/` | **`Dia.png`**, **`Noche.png`**, **`Amanecer.png`**, **`anochecer.png`** | Cielos de 4 estados para escenas del Hub |
+| `Paisajes/Montanas/` | `Dia.png`, `Noche.png`, `Amancer.png`, `Anochecer.png` | Cielos de 4 estados para Montañas |
+| `Plataformas/hub/` | `ladrillos.png`, `PlataformaDerecha.png`, `PlataformaIzquierda.png`, `PlataformaLarga.png` | Tiles y plataformas del Hub |
+
+**Dimensiones de referencia** (PPU=100 en todos):
+- `hub04.png` / cielo Hub: 1672×941px → **16.72u × 9.41u** a escala 1 → a escala (5,5,1) = **83.6u × 47.05u** (sala HV04)
+- `InteriorCasaKael.png`: mismo sprite de HV01_Interior (16.72×9.41u base, escala 2,2,1 → 33.44×18.82u)
+
+**Sprites de Kael** (`Assets/Sprites/Kael/`): idle, run, walk, jump, fall, dash, slide, combo, death, hurt (todos 128×128px, PPU=16)
+
 ## Flujo de pantallas
 ```
 [MainMenu]
@@ -32,8 +49,12 @@ el gameplay (plataformeo, biomas, bosses) es trabajo futuro.
 | MainMenu | ✅ Funcional | Video BG loop + música + logo + 3 botones |
 | Settings | 🔧 En progreso | Opciones con 3 pestañas |
 | SlotsScreen | ✅ Funcional | 4 slots de guardado |
-| Intro       | ✅ Implementada | Video cinemático intro + subtítulos + skip |
-| SampleScene | — | Escena de prueba de gameplay |
+| Intro         | ✅ Implementada | Video cinemático intro + subtítulos + skip |
+| HV01_Interior | ✅ Funcional    | Interior casa de Kael — plataformas, CameraFollow FitRoom, DoorExit→Exterior |
+| HV01_Exterior | 🔧 En progreso | Hub central exterior — parallax, DayCycle, plataformas OneWay, DoorEntry→Interior |
+| HV02_PlazaCentral | 🔧 En progreso | Plaza central — rampas, plataformas OneWay, 4 puertas a subzonas, CameraFollow FollowBounded |
+| HV04          | 🔧 En progreso | Zona A — sala 83.6×47.05u (3× interior), cielo parallax 4 estados, CameraFollow FitRoom. Menú `Eldoria/Setup HV04` reconstruye desde cero. |
+| SampleScene   | —              | Escena de prueba (ignorar) |
 
 ## Estructura de Settings (4 pestañas)
 | Pestaña | Secciones | Controles |
@@ -68,6 +89,15 @@ Controles UI usados: `SelectionControl` (←valor→), `Slider`, `Toggle`.
 | `IntroVideoManager.cs` | Command + Observer | Reproduce video intro, muestra subtítulos cronometrados, skip manteniendo tecla; al terminar carga "Game" |
 | `SubtitleData.cs` | — | ScriptableObject con entradas {startTime, endTime, text}; crear desde Assets → Create → Eldoria → Subtitle Data |
 | `RoomStructure.cs` | Value Object | Elemento de colisión de sala (Ground/Platform/Wall/Ceiling/OneWay). BoxCollider2D + overlay de gizmos en color por tipo. OneWay auto-añade PlatformEffector2D |
+| `ParallaxBackground.cs` | Observer | Fondo con parallax. Fórmula: `bg = cam*(1-f) + origin*f`. `parallaxFactor` (X), `parallaxFactorY` (Y, 1.0=estático). Garantiza visibilidad sin importar distancia al origen. |
+| `DayCycleController.cs` | State Machine | Ciclo día/noche basado en distancia del player. Estados: Night→Dawn→Day→Dusk→Night. Crossfade alpha. Defaults: dawnAt=3000, cycleEnd=20000 (~41 min a walkSpeed=8). |
+| `OneWayPlatform.cs` | Strategy | Plataforma unidireccional horizontal sin PlatformEffector2D.
+| `OneWayRamp.cs`     | Strategy | Rampa unidireccional inclinada. Proyecta en `transform.up`/`transform.right` en vez de AABB Y/X. Misma interfaz que OneWayPlatform (tiene `TriggerDropThrough`). `FixedUpdate` proactivo: `ShouldIgnore()` decide colisión antes de física. Colisiona solo si fondo del player ≥ superficie Y player cae/quieto. Drop-through vía `TriggerDropThrough()`. |
+| `DoorExit.cs` | Command | Zona trigger en puerta. Label flotante configurable (`labelText`). Presionar E carga `targetScene`. Usa SceneFader si existe. |
+| `CameraFollow.cs` | Strategy | Tres modos: FitRoom, FollowClamped, FollowBounded. `targetOffset` desplaza el punto objetivo (Y>0 = Kael en zona inferior del frame). `boundsMin/Max` limitan el centro de cámara. Si hay `CameraBoundsZone` en la escena, la usa automáticamente en lugar de boundsMin/Max.
+| `CameraBoundsZone.cs` | Value Object | Define el área válida de cámara para una sala. Requiere BoxCollider2D (Trigger). Dibuja gizmo verde con etiquetas en Scene View. Menú `Eldoria/Add Camera Bounds` lo crea. `CameraFollow` lo detecta con `FindObjectOfType` en `Start()`. |
+| `PlayerCombat.cs` | State Machine | Combos melee con tecla X. 3 estados (Combo1/2/3). Encadena si X se presiona dentro de la `comboWindow` antes del final del golpe. Parámetro Animator `int AttackCombo` (0=ninguno). Hitbox `AttackHitbox` BoxCollider2D hijo, se crea auto. Damage via `IDamageable`. |
+| `IDamageable.cs` | Strategy | Interfaz `TakeDamage(int)` para enemigos y objetos destructibles. |
 
 ## Assets en el proyecto Unity (`Assets/UI/Sprites/`)
 | Carpeta | Archivos |
@@ -375,3 +405,83 @@ No se usan pilas/colas; los slots no tienen semántica LIFO/FIFO.
     - 200024: Fall→Walk (IsGrounded=true AND Speed>0.1 AND IsRunning=false)
     Modificadas: Idle→Run (200010) + Fall→Run (200013) ahora exigen IsRunning=true.
     Fall→Idle (200012) conserva IsGrounded=true (correcto una vez el bug de detección está resuelto).
+- **2026-05-19 (HV01_Exterior — gameplay exterior)** — Escena exterior completa con los siguientes sistemas:
+  · **ParallaxBackground reescrito:** fórmula `bg = cam*(1-f) + origin*f` para X e Y. `parallaxFactorY=1.0` fija el cielo verticalmente (no baja con la cámara). Sin el bug de fondo negro al alejarse del origen.
+  · **DayCycleController ajustado:** distancias ×25 (dawnAt=3000, cycleEnd=20000). Ciclo completo ~41 min a walkSpeed=8. Defaults actualizados en el script.
+  · **Plataformas elevadas (ElevatedPlatforms):** 7 plataformas creadas por `ExteriorPlatformSetup.cs` en world Y: -17 (low), -13 (mid), -9 (high). Sistema de colisión evolucionó 3 veces:
+    1. PlatformEffector2D + BoxCollider2D → bloqueaba laterales (descartado)
+    2. PlatformEffector2D + EdgeCollider2D → endpoints causaban colisión lateral (descartado)
+    3. **OneWayPlatform.cs** + BoxCollider2D fino (0.15h) → sistema propio estilo Hollow Knight. `FixedUpdate` proactivo: `Physics2D.IgnoreCollision` se decide por posición Y del player, no por normal de contacto. Sin colisiones laterales. Drop-through con `TriggerDropThrough()`.
+  · **PlayerController mecánicas nuevas:**
+    - `HandleDropThrough()`: ↓ sobre OneWayPlatform → llama `TriggerDropThrough()` + velocidad -5.
+    - `HandleFastFall()` extendido: ↓ mientras sube → cancela `_jumpHolding` y detiene la subida (vy=0). ↓ mientras cae → fast fall acelerado.
+    - `HandleJumpHold()`: salto variable Z. jumpMinForce=inicial, jumpForce=techo. **Crítico: jumpForce DEBE ser > jumpMinForce** o el hold no funciona.
+  · **CameraFollow mejorado:** modo `FollowBounded`, `targetOffset` (Vector2) para posicionar a Kael en zona inferior del frame (Y>0 = cámara mira más arriba = Kael más abajo). `orthographicSize=8` (más alejado que interior).
+  · **Negro bajo el suelo:** sprite negro (Assets/UI/Sprites/black_pixel.png) en y=-55, scale 200×60, sortingOrder=-8. Cubre área subterránea que se veía a través del parallax.
+  · **DoorExit.cs actualizado:** campo `labelText` configurable → misma clase sirve para "SALIR" (interior) y "ENTRAR" (exterior).
+  · **Editor scripts creados:**
+    - `ExteriorPlatformSetup.cs` → `Eldoria/Add Exterior Platforms` (7 plataformas)
+    - `ExteriorFixup.cs` → `Eldoria/Fix Exterior Scene` (aplica TODO: OneWayPlatform, camera, DayCycle, backgrounds, negro subterráneo)
+    - `ExteriorDoorSetup.cs` → `Eldoria/Add Exterior Door Entry` (puerta entrada a HV01_Interior)
+  · **HV01_Exterior escenas:** Platforms (suelo), ElevatedPlatforms (7 plataformas), Backgrounds (4 SpriteRenderers con ParallaxBackground), DayCycle, Boundaries, Player, Main Camera.
+  · **Flujo de escenas:** HV01_Interior →(E en puerta derecha)→ HV01_Exterior →(E en puerta entrada)→ HV01_Interior.
+  **PENDIENTE:** MCP Unity se desconecta entre sesiones; reconectar desde Unity (WebSocket localhost:8090). Correr `Eldoria/Fix Exterior Scene` después de cada cambio de escala.
+- **2026-05-20 (OneWayPlatform fix + HV02)** — Corrección definitiva de plataformas y nueva escena:
+  · **Bug raíz OneWayPlatform:** cada plataforma tenía DOS BoxCollider2D idénticos. `OneWayPlatform` solo ignoraba el primero con `GetComponent`; el segundo colisionaba siempre → laterales bloqueados.
+    Fix: `OneWayPlatform.cs` ahora usa `GetComponents<Collider2D>()` → `_allCols[]` → aplica `IgnoreCollision` a TODOS en cada `FixedUpdate`.
+    Fix adicional: chequeo horizontal `playerCenterX` — si el centro X del player está fuera del rango X de la plataforma → ignorar (viene de lado, no de arriba).
+  · **Editor script `FixElevatedPlatforms.cs`:** `Eldoria/Fix Elevated Platforms` → elimina BoxCollider2D duplicado de las 8 plataformas (Plat_A a Plat_I), asegura OneWayPlatform.
+  · **Underground ladrillos:** `_UndergroundFill` en HV01_Exterior actualizado: sprite `Assets/Sprites/Escenarios/Plataformas/hub/ladrillos.png`, drawMode=Tiled, size=(200,60), scale=(1,1,1), sortingOrder=-8.
+  · **HV02_PlazaCentral creada** (`Assets/Scenes/HubCentral/HV02_PlazaCentral.unity`):
+    - Background: `HubCentralInterior.png` escalado al ancho de escena (280u).
+    - Suelo + paredes (Ground layer 8), 5 plataformas OneWayPlatform.
+    - 4 puertas DoorExit (posiciones estimadas — mover en Scene View):
+      · `Door_HV04` → "HV04" (x=-90)
+      · `Door_HV02Interior` → "HV02_Interior" (x=-30, la más grande, 5×6u)
+      · `Door_HV06` → "HV06" (x=30)
+      · `Door_HV05` → "HV05" (x=90)
+    - Underground: ladrillos Tiled, size=(300,80).
+    - CameraFollow FollowBounded, boundsMin=(-140,-32), boundsMax=(140,-0).
+    - Añadida a Build Settings.
+  · **HV01_Exterior actualizado:** `DoorExit_ToHV02` añadida en x=84 (borde derecho) → target="HV02_PlazaCentral", label "PLAZA CENTRAL". Mover en Scene View.
+  · **Flujo de escenas actualizado:** HV01_Exterior →(E borde derecho)→ HV02_PlazaCentral →(4 puertas)→ HV02_Interior / HV04 / HV05 / HV06.
+  · **Editor scripts nuevos:** `HV02SceneSetup.cs` → `Eldoria/Setup HV02 Plaza Central` + `Eldoria/Add HV01 Exterior Exit to HV02`.
+  **PENDIENTE:** (1) Mover las 4 puertas de HV02 para alinear con el sprite de fondo. (2) Mover DoorExit_ToHV02 en HV01_Exterior al borde/puerta correcta. (3) Colocar Player en HV02. (4) Crear escenas HV02_Interior, HV04, HV05, HV06 (vacías o con contenido).
+- **2026-05-20 (Staircases — rampas/gradas)** — Añadidas dos rampas de escaleras a HV02_PlazaCentral:
+  · **`Assets/Editor/AddStaircases.cs`:** menú `Eldoria/Add Staircases`. Patrón Command (menú como acción atómica con Undo) + Factory Method (`CreateRamp()` construye cada rampa).
+  · Crea un padre `Staircases` con dos hijos:
+    - `Ramp_LeftToRight` (+45°, localPos -12,0): sube de izquierda a derecha.
+    - `Ramp_RightToLeft` (-45°, localPos +12,0): sube de derecha a izquierda.
+  · Cada rampa: BoxCollider2D sólido (23×0.7u), sin OneWay → colisión desde todos los ángulos. SpriteRenderer ladrillos.png Tiled/Continuous. Layer 8 (Ground). RoomStructure tipo Ground.
+  · Fix técnico: `TextureImporter.spriteMeshType` no accesible directamente en Unity 2022.3 → se usa `SerializedObject` + `FindProperty("m_SpriteMeshType")` para forzar FullRect (requerido por SpriteDrawMode.Tiled).
+  · Fix menú: carácter `ñ` en "Añadir" no se pasa correctamente por MCP → menú renombrado a `Eldoria/Add Staircases`.
+- **2026-05-20 (OneWayRamp — rampas unidireccionales)** — Nuevo script `Assets/Scripts/OneWayRamp.cs`:
+  · Patrón Strategy (igual que OneWayPlatform): `ShouldIgnore()` en `FixedUpdate` decide proactivamente si la colisión existe.
+  · Diferencia clave respecto a OneWayPlatform: usa `transform.up` (normal de la rampa en espacio mundo) y `transform.right` (largo de la rampa) en lugar de comparar AABB en Y/X.
+  · Algoritmo de `ShouldIgnore()`:
+    1. `signedDist = Dot(playerCenter − rampCenter, transform.up)` → si < −LAND_TOLERANCE: player debajo → IGNORE
+    2. `along = Dot(toPlayer, transform.right)` → si |along| > halfLength: player lateral a los extremos → IGNORE
+    3. `velAlongNormal = Dot(velocity, transform.up)` → si > RISING_THRESHOLD (2.0): player sube desde abajo → IGNORE
+    4. De lo contrario → COLLIDE (player sobre la superficie)
+  · Resultado: se puede pasar por debajo de la rampa o desde el lado de la cara inferior, pero al caminar por encima colisiona normalmente.
+  · `AddStaircases.cs` actualizado: cada rampa ahora añade `OneWayRamp` automáticamente.
+  **PENDIENTE:** Mover y reposicionar ambas rampas en Scene View para alinear con la geometría de HV02.
+- **2026-05-20 (CameraBoundsZone — límites de cámara por sala)** — Sistema visual para definir límites de cámara:
+  · `CameraBoundsZone.cs` (Value Object): BoxCollider2D Trigger + gizmo verde con etiquetas suelo/techo/paredes en Scene View.
+  · `Eldoria/Add Camera Bounds`: crea `CameraBounds` GO en la escena activa con tamaño inicial 280×60.
+  · `CameraFollow.cs` modificado: en `Start()` busca `CameraBoundsZone` con `FindObjectOfType`; si existe, `FollowBounded` usa sus bounds en lugar de `boundsMin/Max` del inspector.
+  · HV02_PlazaCentral: `CameraBounds` añadido (280×60, posición Y=20 → cubre Y=-10 a Y=50 por defecto).
+  · HV02 `targetOffset.y` cambiado de 3 → 5 (Kael aparece en cuarto inferior de pantalla).
+  **PENDIENTE:**
+  - HV02: ajustar `CameraBounds` en Scene View (seleccionar → Inspector → Edit Collider → arrastrar bordes al suelo/techo/paredes reales).
+  - HV01_Exterior: abrir escena → `Eldoria/Add Camera Bounds` → ajustar rectángulo verde.
+- **2026-05-20 (OneWayRamp fixes + transiciones de escena)** — Tres bugs de rampa resueltos y transición HV01↔HV02 implementada:
+  · **Fix auto-salto:** `RISING_THRESHOLD` subido de 0.5 → 2.0. Al detener movimiento en rampa, `velocity.x` cae a 0 instantáneamente; la física puede dar un `vy` pequeño positivo transitorio. Con 0.5 esto falsamente activaba IGNORE → player caía → re-colisión → "salto". Con 2.0 solo saltos genuinos desde abajo (vy≈7-14+) activan IGNORE.
+  · **Fix deslizamiento:** `OneWayRamp.Awake()` ahora crea y asigna un `PhysicsMaterial2D` con `friction=2.0, bounciness=0.0` al BoxCollider2D. Para una pendiente de 45°, se necesita μ ≥ tan(45°) = 1.0; el default de Unity es 0.4 (insuficiente).
+  · **Fix drop-through en rampas:** `PlayerController.HandleDropThrough()` ahora busca también `OneWayRamp` además de `OneWayPlatform`. Presionar ↓ sobre una rampa llama `owr.TriggerDropThrough(0.3f)` + `rb.velocity.y = -5`.
+  · **Transición HV02→HV01:** `SceneBoundary_Left` en HV02 (x=-51, trigger 2×60u) → carga `HV01_Exterior` con `spawnId="right"`. Player aparece cerca del borde derecho de HV01.
+  · **Transición HV01→HV02:** `SceneBoundary_Right` en HV01 (x=84, trigger 2×50u) → carga `HV02_PlazaCentral` con `spawnId="left"`. Player aparece cerca del borde izquierdo de HV02.
+  · **SpawnPoints HV02:** `SpawnPoint_Default` (0, 5) + `SpawnPoint_Left` (-44, 5).
+  · **SpawnPoints HV01:** `SpawnPoint_Default` (0, -30) + `SpawnPoint_Right` (78, -30).
+  · Todas las posiciones son aproximadas basadas en los bounds de la cámara de cada escena. Ajustar en Scene View si el spawn queda dentro de geometría sólida.
+  **PENDIENTE:** Verificar que las posiciones de SpawnPoints y SceneBoundaries coincidan con la geometría real de cada escena (la altura Y de los spawns se estimó sin conocer la posición exacta del suelo).

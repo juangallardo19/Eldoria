@@ -63,6 +63,7 @@ public class PlayerController : MonoBehaviour
 
     private Rigidbody2D rb;
     private BoxCollider2D boxCol;
+    private PlayerCombat _combat;
     private Vector3 _baseScale;
     private bool  _runningMode;
 
@@ -81,16 +82,18 @@ public class PlayerController : MonoBehaviour
     private bool  isOnWallL, isOnWallR;
     private bool  isFloating;
     private float floatTimer;
+    private bool  _isOnRamp;
 
     // Buffer de contactos reutilizable (sin GC por frame)
     private readonly ContactPoint2D[] _contacts = new ContactPoint2D[8];
 
     void Awake()
     {
-        rb     = GetComponent<Rigidbody2D>();
-        boxCol = GetComponent<BoxCollider2D>();
+        rb      = GetComponent<Rigidbody2D>();
+        boxCol  = GetComponent<BoxCollider2D>();
+        _combat = GetComponent<PlayerCombat>();
         _baseScale = transform.localScale;
-        groundLayer = 1 << 8;  // layer 8 = "Ground", hardcoded — no depender del inspector
+        groundLayer = 1 << 8;
     }
 
     void Update()
@@ -135,12 +138,15 @@ public class PlayerController : MonoBehaviour
         // Contactos del rigidbody: normal.y > 0.5 = superficie pisable
         int contactCount = rb.GetContacts(_contacts);
         IsGrounded = false;
+        _isOnRamp  = false;
         for (int i = 0; i < contactCount; i++)
         {
             if (_contacts[i].normal.y > 0.5f)
             {
                 IsGrounded = true;
-                break;
+                // Detecta superficie inclinada (rampa) por la componente X de la normal
+                if (Mathf.Abs(_contacts[i].normal.x) > 0.1f)
+                    _isOnRamp = true;
             }
         }
 
@@ -162,6 +168,15 @@ public class PlayerController : MonoBehaviour
     // ── Movimiento horizontal ──────────────────────────────────────────────
     private void HandleMovement()
     {
+        // Ataque activo en suelo: frena en seco y bloquea movimiento horizontal.
+        // En aire: control normal (solo el jump hold se cancela en HandleJumpHold).
+        if (_combat != null && _combat.IsAttacking && IsGrounded)
+        {
+            rb.velocity = new Vector2(0f, rb.velocity.y);
+            IsRunning = false;
+            return;
+        }
+
         float h = 0f;
         if (Input.GetKey(GetKey("MoveLeft",  KeyCode.A)) || Input.GetKey(KeyCode.LeftArrow))  h = -1f;
         if (Input.GetKey(GetKey("MoveRight", KeyCode.D)) || Input.GetKey(KeyCode.RightArrow)) h =  1f;
@@ -176,7 +191,13 @@ public class PlayerController : MonoBehaviour
             speed = _runningMode ? runSpeed : walkSpeed;  // caída libre desde plataforma: control normal
 
         if (!isFloating && !IsWallSliding)
-            rb.velocity = new Vector2(h * speed, rb.velocity.y);
+        {
+            // En rampa sin input: para en seco para evitar el "salto residual"
+            if (_isOnRamp && h == 0f)
+                rb.velocity = new Vector2(0f, 0f);
+            else
+                rb.velocity = new Vector2(h * speed, rb.velocity.y);
+        }
 
         if (h != 0f)
         {
@@ -233,6 +254,11 @@ public class PlayerController : MonoBehaviour
     // Patrón: sin nombre formal — es un modificador de impulso basado en input continuo.
     private void HandleJumpHold()
     {
+        if (_combat != null && _combat.IsAttacking)
+        {
+            _jumpHolding = false;
+            return;
+        }
         if (!_jumpHolding) return;
 
         bool holdingKey = Input.GetKey(GetKey("Jump", KeyCode.Z));
@@ -249,19 +275,28 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ── Caída acelerada: flecha abajo mientras cae ─────────────────────────
+    // ── Caída acelerada + cancel de salto con ↓ ───────────────────────────
     private void HandleFastFall()
     {
         if (IsGrounded || isDashingInternal || isFloating) return;
-        if (rb.velocity.y >= 0f) return;   // solo activo mientras cae
 
-        if (Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.S))
+        bool downHeld = Input.GetKey(KeyCode.DownArrow)     || Input.GetKey(KeyCode.S);
+        bool downDown = Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S);
+
+        // ↓ mientras se sube → cancela el hold del salto y detiene la subida
+        if (downDown && rb.velocity.y > 0f)
+        {
+            _jumpHolding = false;
+            rb.velocity  = new Vector2(rb.velocity.x, 0f);
+        }
+
+        // Aceleración extra hacia abajo mientras se cae
+        if (rb.velocity.y < 0f && downHeld)
             rb.velocity += Vector2.down * fastFallAccel * Time.deltaTime;
     }
 
-    // ── Drop-through: ↓ mientras está en suelo sobre OneWay platform ────────
-    // Empuja al player 0.3 unidades hacia abajo para que quede bajo el effector
-    // y Physics2D deje de considerarlo como contacto válido.
+    // ── Drop-through: ↓ mientras está en suelo sobre OneWayPlatform ─────────
+    // Delega el drop al componente OneWayPlatform (sistema propio, sin PlatformEffector2D).
     private void HandleDropThrough()
     {
         if (!IsGrounded) return;
@@ -270,13 +305,23 @@ public class PlayerController : MonoBehaviour
         int contactCount = rb.GetContacts(_contacts);
         for (int i = 0; i < contactCount; i++)
         {
-            if (_contacts[i].normal.y > 0.5f &&
-                _contacts[i].collider != null &&
-                _contacts[i].collider.TryGetComponent<PlatformEffector2D>(out _))
+            if (_contacts[i].normal.y > 0.5f && _contacts[i].collider != null)
             {
-                transform.position += Vector3.down * 0.35f;
-                rb.velocity = new Vector2(rb.velocity.x, -2f);
-                return;
+                var owp = _contacts[i].collider.GetComponent<OneWayPlatform>();
+                if (owp != null)
+                {
+                    owp.TriggerDropThrough(0.3f);
+                    rb.velocity = new Vector2(rb.velocity.x, -5f);
+                    return;
+                }
+
+                var owr = _contacts[i].collider.GetComponent<OneWayRamp>();
+                if (owr != null)
+                {
+                    owr.TriggerDropThrough(0.3f);
+                    rb.velocity = new Vector2(rb.velocity.x, -5f);
+                    return;
+                }
             }
         }
     }
@@ -341,7 +386,9 @@ public class PlayerController : MonoBehaviour
     // ── Gravedad mejorada ─────────────────────────────────────────────────
     private void ApplyBetterGravity()
     {
-        if (isDashingInternal || isFloating) return;
+        // Cuando está pisando suelo (incluye rampas), no aplicar gravedad extra:
+        // en rampa causaría contrafuerza vs la velocidad de subida.
+        if (isDashingInternal || isFloating || IsGrounded) return;
 
         if (rb.velocity.y < 0f)
             rb.velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1f) * Time.deltaTime;

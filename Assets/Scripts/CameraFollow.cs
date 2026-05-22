@@ -23,9 +23,25 @@ public class CameraFollow : MonoBehaviour
     [Header("Jugador (solo si modo ≠ FitRoom)")]
     public Transform target;
 
-    [Header("Límites manuales (solo FollowBounded)")]
+    [Header("Límites manuales (solo FollowBounded — ignorados si hay CameraBoundsZone en la escena)")]
     public Vector2 boundsMin = new Vector2(-30f, -12f);
     public Vector2 boundsMax = new Vector2( 30f,   8f);
+
+    // CameraBoundsZone detectado automáticamente en Start(); si existe, sobreescribe boundsMin/Max.
+    private CameraBoundsZone _boundsZone;
+
+    [Header("Offset del objetivo (solo modo Follow)")]
+    [Tooltip("Desplaza el punto que sigue la cámara. Y>0 = Kael aparece más abajo en pantalla.")]
+    public Vector2 targetOffset = new Vector2(0f, 3f);
+
+    [Header("Tamaño de cámara")]
+    [Tooltip("Si > 0, fuerza este tamaño al iniciar el juego (útil en FollowBounded). " +
+             "Déjalo en 0 para usar el valor del componente Camera sin tocarlo.")]
+    [SerializeField] private float manualOrthoSize = 0f;
+
+    [Tooltip("Solo FitRoom: si está activo, calcula el orthographicSize para encajar el fondo " +
+             "exacto (ignora manualOrthoSize). Desactívalo para respetar el tamaño manual.")]
+    [SerializeField] private bool autoFitOrthoSize = true;
 
     [Header("Suavizado (solo modo Follow)")]
     [SerializeField] private float smoothTime = 0.18f;
@@ -44,6 +60,13 @@ public class CameraFollow : MonoBehaviour
             var p = GameObject.FindGameObjectWithTag("Player");
             if (p != null) target = p.transform;
         }
+
+        // Detectar CameraBoundsZone en la escena — sobreescribe boundsMin/Max si existe
+        _boundsZone = FindObjectOfType<CameraBoundsZone>();
+
+        // Aplicar tamaño manual antes de FitToRoom (FitRoom+autoFit puede sobreescribirlo)
+        if (manualOrthoSize > 0f)
+            _cam.orthographicSize = manualOrthoSize;
 
         if (mode == CameraMode.FitRoom || mode == CameraMode.FollowClamped)
             FitToRoom();
@@ -84,14 +107,16 @@ public class CameraFollow : MonoBehaviour
 
         var bounds = roomBackground.bounds;
 
-        // Ajustar altura: orthoSize = mitad del alto del sprite
-        _cam.orthographicSize = bounds.size.y / 2f;
+        if (autoFitOrthoSize)
+        {
+            // Ajustar altura: orthoSize = mitad del alto del sprite
+            _cam.orthographicSize = bounds.size.y / 2f;
 
-        // Ajustar si el aspect ratio deja barras negras laterales
-        // (el sprite es más ancho de lo que cabe a este orthoSize)
-        float neededOrthoForWidth = (bounds.size.x / 2f) / _cam.aspect;
-        if (neededOrthoForWidth > _cam.orthographicSize)
-            _cam.orthographicSize = neededOrthoForWidth;
+            // Ajustar si el aspect ratio deja barras negras laterales
+            float neededOrthoForWidth = (bounds.size.x / 2f) / _cam.aspect;
+            if (neededOrthoForWidth > _cam.orthographicSize)
+                _cam.orthographicSize = neededOrthoForWidth;
+        }
 
         // Centrar en el sprite
         Vector3 center = bounds.center;
@@ -117,8 +142,8 @@ public class CameraFollow : MonoBehaviour
             float minY = bounds.min.y + hv;
             float maxY = bounds.max.y - hv;
 
-            float tx = Mathf.Clamp(target.position.x, minX, maxX);
-            float ty = Mathf.Clamp(target.position.y, minY, maxY);
+            float tx = Mathf.Clamp(target.position.x + targetOffset.x, minX, maxX);
+            float ty = Mathf.Clamp(target.position.y + targetOffset.y, minY, maxY);
             var desired = new Vector3(tx, ty, transform.position.z);
 
             transform.position = Vector3.SmoothDamp(
@@ -131,8 +156,8 @@ public class CameraFollow : MonoBehaviour
     }
 
     // ── FollowBounded ─────────────────────────────────────────────────────────
-    // Sigue al jugador pero clampa con límites manuales (boundsMin/boundsMax).
-    // Ideal para salas anchas con parallax donde el roomBackground no es confiable.
+    // Sigue al jugador pero clampa a los límites de la sala.
+    // Prioridad: CameraBoundsZone en escena > boundsMin/Max manual en inspector.
     private void FollowBounded()
     {
         if (target == null) return;
@@ -140,8 +165,22 @@ public class CameraFollow : MonoBehaviour
         float hv = _cam.orthographicSize;
         float wv = hv * _cam.aspect;
 
-        float tx = Mathf.Clamp(target.position.x, boundsMin.x + wv, boundsMax.x - wv);
-        float ty = Mathf.Clamp(target.position.y, boundsMin.y + hv, boundsMax.y - hv);
+        // Leer límites: zona automática si existe, manual si no
+        Vector2 bMin, bMax;
+        if (_boundsZone != null)
+        {
+            var b = _boundsZone.GetWorldBounds();
+            bMin = b.min;
+            bMax = b.max;
+        }
+        else
+        {
+            bMin = boundsMin;
+            bMax = boundsMax;
+        }
+
+        float tx = Mathf.Clamp(target.position.x + targetOffset.x, bMin.x + wv, bMax.x - wv);
+        float ty = Mathf.Clamp(target.position.y + targetOffset.y, bMin.y + hv, bMax.y - hv);
         var desired = new Vector3(tx, ty, transform.position.z);
 
         transform.position = Vector3.SmoothDamp(

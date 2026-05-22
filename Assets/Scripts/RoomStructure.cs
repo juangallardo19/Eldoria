@@ -31,11 +31,12 @@ public class RoomStructure : MonoBehaviour
     private void SetupOneWayEffector()
     {
         var col = GetComponent<BoxCollider2D>();
-        var eff = gameObject.GetComponent<PlatformEffector2D>()
-                  ?? gameObject.AddComponent<PlatformEffector2D>();
-        eff.useOneWay       = true;
+        // Use explicit Unity-safe null check — ?? doesn't detect Unity's fake-null destroyed objects.
+        var eff = GetComponent<PlatformEffector2D>();
+        if (eff == null) eff = gameObject.AddComponent<PlatformEffector2D>();
+        eff.useOneWay        = true;
         eff.rotationalOffset = 0f;
-        col.usedByEffector  = true;
+        col.usedByEffector   = true;
     }
 
     private void BuildRuntimeOverlay()
