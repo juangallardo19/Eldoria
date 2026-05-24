@@ -27,8 +27,17 @@ public class CameraFollow : MonoBehaviour
     public Vector2 boundsMin = new Vector2(-30f, -12f);
     public Vector2 boundsMax = new Vector2( 30f,   8f);
 
-    // CameraBoundsZone detectado automáticamente en Start(); si existe, sobreescribe boundsMin/Max.
+    // Zona activa: se asigna en Start (escena con una sola zona) o en runtime cuando el jugador
+    // entra en un CameraBoundsZone (escenas con múltiples zonas para salas irregulares).
     private CameraBoundsZone _boundsZone;
+    public  CameraBoundsZone ActiveBoundsZone => _boundsZone;
+
+    // Límites escalonados: alternativa a CameraBoundsZone para techos irregulares.
+    // Prioridad: SteppedCameraBounds > CameraBoundsZone > boundsMin/Max manual.
+    private SteppedCameraBounds _steppedBounds;
+
+    // Llamado por CameraBoundsZone cuando el jugador entra/sale de una zona.
+    public void SetActiveBoundsZone(CameraBoundsZone zone) => _boundsZone = zone;
 
     [Header("Offset del objetivo (solo modo Follow)")]
     [Tooltip("Desplaza el punto que sigue la cámara. Y>0 = Kael aparece más abajo en pantalla.")]
@@ -61,8 +70,9 @@ public class CameraFollow : MonoBehaviour
             if (p != null) target = p.transform;
         }
 
-        // Detectar CameraBoundsZone en la escena — sobreescribe boundsMin/Max si existe
-        _boundsZone = FindObjectOfType<CameraBoundsZone>();
+        // Detectar SteppedCameraBounds primero; si no existe, buscar CameraBoundsZone
+        _steppedBounds = FindObjectOfType<SteppedCameraBounds>();
+        _boundsZone    = FindObjectOfType<CameraBoundsZone>();
 
         // Aplicar tamaño manual antes de FitToRoom (FitRoom+autoFit puede sobreescribirlo)
         if (manualOrthoSize > 0f)
@@ -157,7 +167,7 @@ public class CameraFollow : MonoBehaviour
 
     // ── FollowBounded ─────────────────────────────────────────────────────────
     // Sigue al jugador pero clampa a los límites de la sala.
-    // Prioridad: CameraBoundsZone en escena > boundsMin/Max manual en inspector.
+    // Prioridad: SteppedCameraBounds > CameraBoundsZone > boundsMin/Max manual.
     private void FollowBounded()
     {
         if (target == null) return;
@@ -165,22 +175,31 @@ public class CameraFollow : MonoBehaviour
         float hv = _cam.orthographicSize;
         float wv = hv * _cam.aspect;
 
-        // Leer límites: zona automática si existe, manual si no
-        Vector2 bMin, bMax;
-        if (_boundsZone != null)
+        float xMin, xMax, yMin, yMax;
+
+        if (_steppedBounds != null)
+        {
+            // Límites de Y dinámicos según la X actual del jugador
+            Vector2 yb = _steppedBounds.GetYBoundsAtX(target.position.x);
+            xMin = _steppedBounds.XMin;
+            xMax = _steppedBounds.XMax;
+            yMin = yb.x;
+            yMax = yb.y;
+        }
+        else if (_boundsZone != null)
         {
             var b = _boundsZone.GetWorldBounds();
-            bMin = b.min;
-            bMax = b.max;
+            xMin = b.min.x; xMax = b.max.x;
+            yMin = b.min.y; yMax = b.max.y;
         }
         else
         {
-            bMin = boundsMin;
-            bMax = boundsMax;
+            xMin = boundsMin.x; xMax = boundsMax.x;
+            yMin = boundsMin.y; yMax = boundsMax.y;
         }
 
-        float tx = Mathf.Clamp(target.position.x + targetOffset.x, bMin.x + wv, bMax.x - wv);
-        float ty = Mathf.Clamp(target.position.y + targetOffset.y, bMin.y + hv, bMax.y - hv);
+        float tx = Mathf.Clamp(target.position.x + targetOffset.x, xMin + wv, xMax - wv);
+        float ty = Mathf.Clamp(target.position.y + targetOffset.y, yMin + hv, yMax - hv);
         var desired = new Vector3(tx, ty, transform.position.z);
 
         transform.position = Vector3.SmoothDamp(

@@ -5,14 +5,14 @@ using UnityEditor.SceneManagement;
 using UnityEngine.SceneManagement;
 #endif
 
-// Define el área válida de movimiento de la cámara para una sala.
-// Patrón: Value Object — declara los límites; CameraFollow los consume automáticamente.
+// Define un área válida de movimiento de la cámara.
+// Patrón: Value Object + Observer — declara límites y notifica a CameraFollow cuando el jugador entra/sale.
 //
 // USO:
-//   1. Menú  Eldoria → Add Camera Bounds  para crear el objeto en la escena.
-//   2. En Inspector, clic en "Edit Collider" (botón verde) para redimensionar
-//      el rectángulo verde arrastrando los bordes en Scene View.
-//   3. CameraFollow lo detecta solo — no hay que asignar nada manualmente.
+//   · Una zona por escena (modo clásico): CameraFollow la detecta en Start automáticamente.
+//   · Varias zonas (salas irregulares): cada zona notifica al CameraFollow al entrar/salir
+//     el jugador, permitiendo bounds diferentes por sección sin componentes extra.
+//   En ambos casos: Menú Eldoria → Add Camera Bounds, luego Edit Collider para ajustar.
 [RequireComponent(typeof(BoxCollider2D))]
 public class CameraBoundsZone : MonoBehaviour
 {
@@ -21,7 +21,22 @@ public class CameraBoundsZone : MonoBehaviour
     void Awake()
     {
         _col = GetComponent<BoxCollider2D>();
-        _col.isTrigger = true; // nunca interactúa con la física
+        _col.isTrigger = true;
+    }
+
+    // ── Observer: notifica al CameraFollow cuando el jugador entra/sale ───────
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if (!other.CompareTag("Player")) return;
+        var cf = Camera.main?.GetComponent<CameraFollow>();
+        if (cf != null) cf.SetActiveBoundsZone(this);
+    }
+
+    void OnTriggerExit2D(Collider2D other)
+    {
+        if (!other.CompareTag("Player")) return;
+        var cf = Camera.main?.GetComponent<CameraFollow>();
+        if (cf != null && cf.ActiveBoundsZone == this) cf.SetActiveBoundsZone(null);
     }
 
     // Devuelve los límites del área en espacio mundo.

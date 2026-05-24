@@ -137,6 +137,7 @@ GameObject:
   - component: {fileID: 144539811}
   - component: {fileID: 144539810}
   - component: {fileID: 144539809}
+  - component: {fileID: 144539816}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -205,6 +206,7 @@ MonoBehaviour:
   dashCooldown: 0.5
   wallSlideSpeed: 1.5
   wallJumpForce: {x: 9, y: 16}
+  attackWalkMult: 0.45
   floatGravity: 0.3
   floatMaxTime: 3
   hasDoubleJump: 0
@@ -361,6 +363,32 @@ Transform:
   - {fileID: 790186831}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &144539816
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 144539808}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7873ff65d2be9dc4683310c10e31bcc9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  combo1Duration: 0.45
+  combo2Duration: 0.61
+  combo3Duration: 0.72
+  comboWindow: 0.2
+  idleStateName: Idle
+  hitbox: {fileID: 0}
+  hitboxOffset: {x: 1.2, y: 0}
+  hitboxSize: {x: 1.8, y: 1.5}
+  combo1Damage: 10
+  combo2Damage: 15
+  combo3Damage: 25
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 0
 --- !u!1 &570322133
 GameObject:
   m_ObjectHideFlags: 0
@@ -471,6 +499,9 @@ MonoBehaviour:
   target: {fileID: 144539815}
   boundsMin: {x: -7, y: 0}
   boundsMax: {x: 7, y: 4}
+  targetOffset: {x: 0, y: 3}
+  manualOrthoSize: 0
+  autoFitOrthoSize: 1
   smoothTime: 0.18
 --- !u!1 &770832126
 GameObject:
@@ -597,7 +628,6 @@ GameObject:
   m_Component:
   - component: {fileID: 798614312}
   - component: {fileID: 798614311}
-  - component: {fileID: 798614310}
   m_Layer: 8
   m_Name: WallRight
   m_TagString: Untagged
@@ -605,21 +635,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &798614310
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 798614309}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3f68cb6d018f8dc4c91cbb0275844420, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  type: 2
-  overlayOpacity: 0.55
-  showOverlayInGame: 0
 --- !u!61 &798614311
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -711,6 +726,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetScene: HV01_Exterior
+  spawnId: door
+  labelText: '[ E ]  SALIR'
   labelTransform: {fileID: 0}
   labelFont: {fileID: 11400000, guid: 8ec795b1cee7f7840b38e96dfda2ed07, type: 2}
   bobAmplitude: 0.25
@@ -775,6 +792,140 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1100000001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1100000003}
+  - component: {fileID: 1100000002}
+  m_Layer: 0
+  m_Name: PlayerSpawnManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1100000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1100000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c05e3b7fafb297b4484e88230881dbb0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!4 &1100000003
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1100000001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1100000004
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1100000005}
+  - component: {fileID: 1100000006}
+  m_Layer: 0
+  m_Name: SpawnPoint_Default
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1100000005
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1100000004}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -11, y: -4, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1100000006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1100000004}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2e546350f664d24dadce924556588cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spawnId: default
+--- !u!1 &1100000007
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1100000008}
+  - component: {fileID: 1100000009}
+  m_Layer: 0
+  m_Name: SpawnPoint_Door
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1100000008
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1100000007}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 8.5, y: -4, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1100000009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1100000007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2e546350f664d24dadce924556588cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spawnId: door
 --- !u!1 &1538293851
 GameObject:
   m_ObjectHideFlags: 0
@@ -816,7 +967,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1707131938}
   - component: {fileID: 1707131937}
-  - component: {fileID: 1707131936}
   m_Layer: 8
   m_Name: Ground
   m_TagString: Untagged
@@ -824,21 +974,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1707131936
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1707131935}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3f68cb6d018f8dc4c91cbb0275844420, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  type: 0
-  overlayOpacity: 0.55
-  showOverlayInGame: 0
 --- !u!61 &1707131937
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -909,7 +1044,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1715887505}
   - component: {fileID: 1715887504}
-  - component: {fileID: 1715887503}
   m_Layer: 8
   m_Name: WallLeft
   m_TagString: Untagged
@@ -917,21 +1051,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1715887503
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1715887502}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3f68cb6d018f8dc4c91cbb0275844420, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  type: 2
-  overlayOpacity: 0.55
-  showOverlayInGame: 0
 --- !u!61 &1715887504
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1002,7 +1121,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1855502683}
   - component: {fileID: 1855502682}
-  - component: {fileID: 1855502681}
   m_Layer: 8
   m_Name: Ceiling
   m_TagString: Untagged
@@ -1010,21 +1128,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1855502681
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1855502680}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3f68cb6d018f8dc4c91cbb0275844420, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  type: 3
-  overlayOpacity: 0.55
-  showOverlayInGame: 0
 --- !u!61 &1855502682
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1128,3 +1231,6 @@ SceneRoots:
   - {fileID: 1715887505}
   - {fileID: 798614312}
   - {fileID: 810420229}
+  - {fileID: 1100000003}
+  - {fileID: 1100000005}
+  - {fileID: 1100000008}

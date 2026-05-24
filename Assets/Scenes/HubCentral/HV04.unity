@@ -143,6 +143,7 @@ MonoBehaviour:
   combo2Duration: 0.917
   combo3Duration: 1.083
   comboWindow: 0.3
+  idleStateName: Idle
   hitbox: {fileID: 0}
   hitboxOffset: {x: 1.2, y: 0}
   hitboxSize: {x: 1.8, y: 1.5}
@@ -189,6 +190,8 @@ MonoBehaviour:
   boundsMin: {x: -30, y: -12}
   boundsMax: {x: 30, y: 8}
   targetOffset: {x: 0, y: 3}
+  manualOrthoSize: 0
+  autoFitOrthoSize: 1
   smoothTime: 0.18
 --- !u!81 &278169282
 AudioListener:
@@ -1290,10 +1293,7 @@ MonoBehaviour:
   bgDawn: {fileID: 608814212}
   bgDay: {fileID: 1770582736}
   bgDusk: {fileID: 1163119987}
-  dawnAt: 3000
-  dayAt: 7500
-  duskAt: 14000
-  cycleEnd: 20000
+  phaseDuration: 300
   fadeDuration: 4
 --- !u!4 &1964411697
 Transform:

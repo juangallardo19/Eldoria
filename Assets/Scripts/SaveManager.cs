@@ -12,6 +12,10 @@ public class SaveManager : MonoBehaviour
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
+
+        // Bootstrap: asegurar que GameSaveController existe junto al SaveManager.
+        if (GameSaveController.Instance == null)
+            gameObject.AddComponent<GameSaveController>();
     }
 
     private string SlotPath(int slot) =>

@@ -43,4 +43,15 @@ public class BackgroundVideoManager : MonoBehaviour
     }
 
     public double CurrentTime => _vp.time;
+
+    public RenderTexture TargetTexture => _vp.targetTexture;
+
+    // Cambia el clip que se reproduce (útil para que cada escena tenga su propio video de fondo).
+    public void SwitchClip(UnityEngine.Video.VideoClip clip)
+    {
+        if (clip == null) return;
+        _vp.Stop();
+        _vp.clip = clip;
+        _vp.Play();
+    }
 }

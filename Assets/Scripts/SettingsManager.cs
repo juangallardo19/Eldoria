@@ -68,6 +68,7 @@ public class SettingsManager : MonoBehaviour
     // ── Ajustes generales ─────────────────────────────────────────────────
     [Header("Ajustes generales")]
     [SerializeField] private SelectionControl languageSelector;
+    [SerializeField] private Toggle           showFpsToggle;
 
     // ── Navegación ────────────────────────────────────────────────────────
     [Header("Navegación")]
@@ -85,6 +86,7 @@ public class SettingsManager : MonoBehaviour
     private const string K_COLOR_BLIND       = "ColorBlind";
     private const string K_COLOR_BLIND_TYPE  = "ColorBlindType";
     private const string K_COLOR_BLIND_INT   = "ColorBlindIntensity";
+    private const string K_SHOW_FPS          = "ShowFPS";
     private const string K_MASTER_VOL        = "MasterVolume";
     private const string K_MUSIC_VOL         = "MusicVolume";
     private const string K_SFX_VOL           = "SFXVolume";
@@ -108,7 +110,59 @@ public class SettingsManager : MonoBehaviour
         (1200, 675)
     };
 
-    private static readonly int[] FpsValues = { 120, 144, -1 };
+    private static readonly int[] FpsValues = { 30, 60, 120, 144, -1 };
+
+    private int  _currentTabIndex;
+    private bool _initialized;
+
+    // ── Observer: idioma ──────────────────────────────────────────────────
+    void OnEnable()  => LocalizationManager.OnLanguageChanged += OnLanguageChanged;
+    void OnDisable() => LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+
+    void OnLanguageChanged(string _)
+    {
+        RefreshLocalizedSelectorOptions();
+        if (_initialized)
+            ShowPanel(PanelAtIndex(_currentTabIndex), TabButtonAtIndex(_currentTabIndex), _currentTabIndex);
+    }
+
+    private void RefreshLocalizedSelectorOptions()
+    {
+        if (screenModeSelector != null)
+        {
+            int v = screenModeSelector.value;
+            screenModeSelector.SetOptions(new List<string>
+            {
+                LocalizationManager.Get("Pantalla completa"),
+                LocalizationManager.Get("Sin bordes"),
+                LocalizationManager.Get("Ventana")
+            });
+            screenModeSelector.value = v;
+        }
+        if (fpsSelector != null)
+        {
+            int v = fpsSelector.value;
+            fpsSelector.SetOptions(new List<string>
+                { "30", "60", "120", "144", LocalizationManager.Get("Sin límite") });
+            fpsSelector.value = v;
+        }
+        if (qualitySelector != null)
+        {
+            int v = qualitySelector.value;
+            qualitySelector.SetOptions(new List<string>
+            {
+                LocalizationManager.Get("Bajo"),
+                LocalizationManager.Get("Medio"),
+                LocalizationManager.Get("Alto")
+            });
+            qualitySelector.value = v;
+        }
+    }
+
+    private GameObject PanelAtIndex(int i) =>
+        i switch { 1 => sonidoPanel, 2 => controlesPanel, 3 => ajustesPanel, _ => graficosPanel };
+    private Button TabButtonAtIndex(int i) =>
+        i switch { 1 => sonidoTabButton, 2 => controlesTabButton, 3 => ajustesTabButton, _ => graficosTabButton };
 
     // ─────────────────────────────────────────────────────────────────────
     void Start()
@@ -119,6 +173,7 @@ public class SettingsManager : MonoBehaviour
         SetupTabs();
         SetupNavigation();
         ShowPanel(graficosPanel, graficosTabButton, 0);
+        _initialized = true;
     }
 
     // ── Gráficos ──────────────────────────────────────────────────────────
@@ -142,7 +197,11 @@ public class SettingsManager : MonoBehaviour
         if (screenModeSelector != null)
         {
             screenModeSelector.SetOptions(new List<string>
-                { "Pantalla completa", "Sin bordes", "Ventana" });
+            {
+                LocalizationManager.Get("Pantalla completa"),
+                LocalizationManager.Get("Sin bordes"),
+                LocalizationManager.Get("Ventana")
+            });
             screenModeSelector.value = PlayerPrefs.GetInt(K_SCREEN_MODE, 0);
             screenModeSelector.onValueChanged += idx =>
             {
@@ -152,11 +211,12 @@ public class SettingsManager : MonoBehaviour
             };
         }
 
-        // FPS: 120 / 144 / Sin límite
+        // FPS: 30 / 60 / 120 / 144 / Sin límite
         if (fpsSelector != null)
         {
-            fpsSelector.SetOptions(new List<string> { "120", "144", "Sin límite" });
-            int savedFps = PlayerPrefs.GetInt(K_FPS, 2); // Sin límite por defecto
+            fpsSelector.SetOptions(new List<string>
+                { "30", "60", "120", "144", LocalizationManager.Get("Sin límite") });
+            int savedFps = PlayerPrefs.GetInt(K_FPS, 4); // Sin límite por defecto (índice 4)
             fpsSelector.value = savedFps;
             Application.targetFrameRate = FpsValues[Mathf.Clamp(savedFps, 0, FpsValues.Length - 1)];
             fpsSelector.onValueChanged += idx =>
@@ -181,7 +241,12 @@ public class SettingsManager : MonoBehaviour
         // Calidad
         if (qualitySelector != null)
         {
-            qualitySelector.SetOptions(new List<string> { "Bajo", "Medio", "Alto" });
+            qualitySelector.SetOptions(new List<string>
+            {
+                LocalizationManager.Get("Bajo"),
+                LocalizationManager.Get("Medio"),
+                LocalizationManager.Get("Alto")
+            });
             qualitySelector.value = PlayerPrefs.GetInt(K_QUALITY, 1);
             qualitySelector.onValueChanged += idx =>
             {
@@ -192,10 +257,11 @@ public class SettingsManager : MonoBehaviour
         }
 
         // Visual — Brillo / Contraste / Saturación
-        // (requiere post-procesado para efecto visual; valores guardados en PlayerPrefs)
+        ScreenEffectsManager.EnsureExists();
         SetupVisualSlider(brightnessSlider,  K_BRIGHTNESS,  0.5f);
         SetupVisualSlider(contrastSlider,    K_CONTRAST,    0.5f);
         SetupVisualSlider(saturationSlider,  K_SATURATION,  0.5f);
+        ApplyVisualEffects();
 
         // Accesibilidad — Daltonismo
         bool cbActive = PlayerPrefs.GetInt(K_COLOR_BLIND, 0) == 1;
@@ -235,7 +301,15 @@ public class SettingsManager : MonoBehaviour
         if (s == null) return;
         s.minValue = 0f; s.maxValue = 1f;
         s.value = PlayerPrefs.GetFloat(key, defaultVal);
-        s.onValueChanged.AddListener(v => PlayerPrefs.SetFloat(key, v));
+        s.onValueChanged.AddListener(v => { PlayerPrefs.SetFloat(key, v); ApplyVisualEffects(); });
+    }
+
+    private void ApplyVisualEffects()
+    {
+        float b = brightnessSlider  != null ? brightnessSlider.value  : PlayerPrefs.GetFloat(K_BRIGHTNESS,  0.5f);
+        float c = contrastSlider    != null ? contrastSlider.value    : PlayerPrefs.GetFloat(K_CONTRAST,    0.5f);
+        float s = saturationSlider  != null ? saturationSlider.value  : PlayerPrefs.GetFloat(K_SATURATION,  0.5f);
+        ScreenEffectsManager.Apply(b, c, s);
     }
 
     // ── Sonido ────────────────────────────────────────────────────────────
@@ -243,8 +317,11 @@ public class SettingsManager : MonoBehaviour
     {
         SetupVolumeSlider(masterVolumeSlider, K_MASTER_VOL, 1f, vol =>
         {
-            AudioManager.Instance?.SetMusicVolume(vol * GetPref(K_MUSIC_VOL, 1f));
-            AudioManager.Instance?.SetSFXVolume(vol * GetPref(K_SFX_VOL, 1f));
+            // Lee el slider en memoria, no PlayerPrefs — evita que AudioManager contamine esa clave
+            float m = musicSlider != null ? musicSlider.value : GetPref(K_MUSIC_VOL, 1f);
+            float s = sfxSlider   != null ? sfxSlider.value   : GetPref(K_SFX_VOL,   1f);
+            AudioManager.Instance?.SetMusicVolume(vol * m);
+            AudioManager.Instance?.SetSFXVolume(vol * s);
         });
 
         SetupVolumeSlider(musicSlider, K_MUSIC_VOL, 1f, vol =>
@@ -274,10 +351,24 @@ public class SettingsManager : MonoBehaviour
     // ── Ajustes generales ─────────────────────────────────────────────────
     private void SetupAjustes()
     {
-        if (languageSelector == null) return;
-        languageSelector.SetOptions(new List<string> { "Español", "English" });
-        languageSelector.value = PlayerPrefs.GetInt(K_LANGUAGE, 0);
-        languageSelector.onValueChanged += idx => PlayerPrefs.SetInt(K_LANGUAGE, idx);
+        if (languageSelector != null)
+        {
+            languageSelector.SetOptions(new List<string> { "Español", "English" });
+            int savedLang = PlayerPrefs.GetInt(K_LANGUAGE, 0);
+            languageSelector.value = savedLang;
+            LocalizationManager.SetLanguage(savedLang);
+            languageSelector.onValueChanged += idx =>
+            {
+                PlayerPrefs.SetInt(K_LANGUAGE, idx);
+                LocalizationManager.SetLanguage(idx);
+            };
+        }
+
+        if (showFpsToggle != null)
+        {
+            showFpsToggle.isOn = PlayerPrefs.GetInt(K_SHOW_FPS, 0) == 1;
+            showFpsToggle.onValueChanged.AddListener(on => FpsCounter.SetVisible(on));
+        }
     }
 
     // ── State Machine: pestañas ───────────────────────────────────────────
@@ -291,6 +382,8 @@ public class SettingsManager : MonoBehaviour
 
     private void ShowPanel(GameObject target, Button activeTab, int tabIndex)
     {
+        _currentTabIndex = tabIndex;
+
         if (graficosPanel)  graficosPanel .SetActive(target == graficosPanel);
         if (sonidoPanel)    sonidoPanel   .SetActive(target == sonidoPanel);
         if (controlesPanel) controlesPanel.SetActive(target == controlesPanel);
@@ -301,7 +394,8 @@ public class SettingsManager : MonoBehaviour
         UpdateTabSprite(controlesTabButton, activeTab == controlesTabButton);
         UpdateTabSprite(ajustesTabButton,   activeTab == ajustesTabButton);
 
-        if (panelTitleLabel != null) panelTitleLabel.text = TabNames[tabIndex];
+        if (panelTitleLabel != null)
+            panelTitleLabel.text = LocalizationManager.Get(TabNames[tabIndex]);
     }
 
     private void UpdateTabSprite(Button btn, bool isActive)

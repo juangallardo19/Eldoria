@@ -16,9 +16,10 @@ public class PlayerSpawnManager : MonoBehaviour
     // Escribir antes de cargar la escena destino para controlar dónde aparece el jugador.
     public static string NextSpawnId = "default";
 
-    // true solo en la primera instancia creada; la escena propia ya cargó antes
-    // de que pudiéramos suscribirnos a sceneLoaded, así que llamamos PlacePlayer en Start.
     private bool _isFirstInstance;
+    // sceneLoaded fires before Start(); this flag lets Start() skip PlacePlayer
+    // when OnSceneLoaded already handled it, preventing the double-coroutine bug.
+    private bool _sceneLoadHandled;
 
     void Awake()
     {
@@ -31,9 +32,8 @@ public class PlayerSpawnManager : MonoBehaviour
 
     void Start()
     {
-        // La primera vez que existe el PSM, sceneLoaded ya disparó antes de que
-        // nos suscribiéramos. Recuperamos el evento colocando al jugador ahora.
-        if (_isFirstInstance)
+        // Only runs when PSM is added at runtime mid-scene (sceneLoaded won't re-fire).
+        if (_isFirstInstance && !_sceneLoadHandled)
             StartCoroutine(PlacePlayer());
     }
 
@@ -45,6 +45,7 @@ public class PlayerSpawnManager : MonoBehaviour
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        _sceneLoadHandled = true;
         StopAllCoroutines();
         StartCoroutine(PlacePlayer());
     }

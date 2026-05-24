@@ -32,6 +32,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float wallSlideSpeed  = 1.5f;
     [SerializeField] private Vector2 wallJumpForce = new Vector2(9f, 16f);
 
+    [Header("Combate — ralentización al atacar")]
+    [SerializeField] private float attackWalkMult = 0.45f; // fracción de walkSpeed cuando se ataca caminando
+
     [Header("Float (Bioma 4)")]
     [SerializeField] private float floatGravity = 0.3f;
     [SerializeField] private float floatMaxTime = 3f;
@@ -168,11 +171,16 @@ public class PlayerController : MonoBehaviour
     // ── Movimiento horizontal ──────────────────────────────────────────────
     private void HandleMovement()
     {
-        // Ataque activo en suelo: frena en seco y bloquea movimiento horizontal.
-        // En aire: control normal (solo el jump hold se cancela en HandleJumpHold).
+        // Ataque en suelo: ralentiza el movimiento en vez de bloquearlo.
+        // Corriendo → baja a walkSpeed; Caminando → baja a walkSpeed * attackWalkMult.
         if (_combat != null && _combat.IsAttacking && IsGrounded)
         {
-            rb.velocity = new Vector2(0f, rb.velocity.y);
+            float hAtk = 0f;
+            if (Input.GetKey(GetKey("MoveLeft",  KeyCode.A)) || Input.GetKey(KeyCode.LeftArrow))  hAtk = -1f;
+            if (Input.GetKey(GetKey("MoveRight", KeyCode.D)) || Input.GetKey(KeyCode.RightArrow)) hAtk =  1f;
+
+            float attackSpeed = _runningMode ? walkSpeed : walkSpeed * attackWalkMult;
+            rb.velocity = new Vector2(hAtk * attackSpeed, rb.velocity.y);
             IsRunning = false;
             return;
         }

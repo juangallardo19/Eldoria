@@ -26,9 +26,11 @@ public class AudioManager : MonoBehaviour
         if (musicSource == null && sources.Length > 0) musicSource = sources[0];
         if (sfxSource   == null && sources.Length > 1) sfxSource   = sources[1];
 
-        // playOnAwake = false: el script controla cuándo empieza la música
-        if (musicSource != null) { musicSource.playOnAwake = false; musicSource.volume = PlayerPrefs.GetFloat(MusicVolumeKey, 1f); }
-        if (sfxSource   != null) { sfxSource  .playOnAwake = false; sfxSource  .volume = PlayerPrefs.GetFloat(SFXVolumeKey,   1f); }
+        // Aplica master * canal para inicializar — AudioManager NO escribe en PlayerPrefs,
+        // esa responsabilidad pertenece a SettingsManager.
+        float master = PlayerPrefs.GetFloat("MasterVolume", 1f);
+        if (musicSource != null) { musicSource.playOnAwake = false; musicSource.volume = PlayerPrefs.GetFloat(MusicVolumeKey, 1f) * master; }
+        if (sfxSource   != null) { sfxSource  .playOnAwake = false; sfxSource  .volume = PlayerPrefs.GetFloat(SFXVolumeKey,   1f) * master; }
     }
 
     // ── Control de música ─────────────────────────────────────────────────
@@ -51,13 +53,11 @@ public class AudioManager : MonoBehaviour
     public void SetMusicVolume(float volume)
     {
         if (musicSource != null) musicSource.volume = volume;
-        PlayerPrefs.SetFloat(MusicVolumeKey, volume);
     }
 
     public void SetSFXVolume(float volume)
     {
         if (sfxSource != null) sfxSource.volume = volume;
-        PlayerPrefs.SetFloat(SFXVolumeKey, volume);
     }
 
     public float GetMusicVolume() => musicSource != null ? musicSource.volume : PlayerPrefs.GetFloat(MusicVolumeKey, 1f);

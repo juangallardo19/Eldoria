@@ -1,22 +1,25 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-using UnityEngine.EventSystems;
+using UnityEngine.Video;
 using TMPro;
+using System.Collections;
 
-// State Machine — rastrea el slot seleccionado (_selectedSlot).
-// Observer     — botones globales y label SELECCIONAR reaccionan al estado activo.
+// State Machine — cada slot es autónomo; hacer clic actúa directamente.
+// Observer     — los botones de restart/delete reaccionan al estado del slot.
 public class SlotsScreenManager : MonoBehaviour
 {
     [System.Serializable]
     public class SlotUI
     {
-        public Button          cardButton;    // cubre toda la tarjeta; usa SpriteSwap
-        public GameObject      emptyState;    // contenido visible cuando el slot está vacío
-        public GameObject      occupiedState; // contenido visible cuando el slot está lleno
-        public TextMeshProUGUI levelText;
-        public TextMeshProUGUI zoneText;
-        public TextMeshProUGUI playTimeText;
+        public Button          cardButton;      // clic → nueva partida o continuar
+        public GameObject      emptyState;      // "?" visual, activo cuando vacío
+        public GameObject      occupiedState;   // silueta/imagen, activo cuando lleno
+        public TextMeshProUGUI slotTitleText;   // "Slot X" (vacío) o zona+tiempo (lleno)
+        public TextMeshProUGUI subtitleText;    // "Nueva partida" o "Continuar partida"
+        public TextMeshProUGUI statusText;      // "Vacío" debajo de la tarjeta (solo vacío)
+        public Button          restartButton;   // reiniciar partida (solo lleno)
+        public Button          deleteButton;    // eliminar partida (solo lleno)
     }
 
     [SerializeField] private SlotUI[] slots = new SlotUI[4];
@@ -31,39 +34,49 @@ public class SlotsScreenManager : MonoBehaviour
     [SerializeField] private Sprite _sprFilledHover;
     [SerializeField] private Sprite _sprFilledPress;
 
-    [Header("Botones globales")]
-    [SerializeField] private Button          backButton;
-    [SerializeField] private Button          deleteButton;
-    [SerializeField] private Button          selectButton;
-    [SerializeField] private TextMeshProUGUI selectButtonLabel;
+    [Header("Navegación")]
+    [SerializeField] private Button backButton;
 
-    [Header("Panel confirmación borrar")]
-    [SerializeField] private GameObject deleteConfirmPanel;
-    [SerializeField] private Button     confirmDeleteYes;
-    [SerializeField] private Button     confirmDeleteNo;
+    [Header("Video fondo")]
+    [SerializeField] private VideoClip slotsBgClip;
+
+    [Header("Fondo")]
+    [SerializeField] private RawImage backgroundImage;
 
     [Header("Audio")]
     [SerializeField] private AudioSource ambienceSource;
 
-    // Array fijo de 4 entradas — acceso O(1) por índice, apropiado para slots de tamaño fijo
-    private readonly SaveData[] _saves        = new SaveData[4];
-    private          int        _selectedSlot = -1;
+    [Header("Panel confirmación")]
+    [SerializeField] private GameObject confirmPanel;
+    [SerializeField] private TextMeshProUGUI confirmText;
+    [SerializeField] private Button confirmYes;
+    [SerializeField] private Button confirmNo;
 
-    // ─────────────────────────────────────────────────────────────────────
+    private readonly SaveData[] _saves = new SaveData[4];
+    private int _pendingActionSlot = -1;
+    private bool _pendingIsRestart;
+
+    // ─────────────────────────────────────────────────────────────────────────
     void Start()
     {
+        // Auto-detectar backgroundImage si el inspector no lo tiene cableado
+        if (backgroundImage == null)
+        {
+            var bgT = transform.Find("Background");
+            if (bgT != null) backgroundImage = bgT.GetComponent<RawImage>();
+        }
+
         AudioManager.Instance?.StopMusic();
         if (ambienceSource != null && ambienceSource.clip != null)
             ambienceSource.Play();
 
-        if (deleteConfirmPanel != null) deleteConfirmPanel.SetActive(false);
+        SetupBackground();
 
-        backButton  ?.onClick.AddListener(OnBack);
-        deleteButton?.onClick.AddListener(OnDelete);
-        selectButton?.onClick.AddListener(OnSelect);
+        if (confirmPanel != null) confirmPanel.SetActive(false);
 
-        confirmDeleteYes?.onClick.AddListener(ConfirmDelete);
-        confirmDeleteNo ?.onClick.AddListener(() => deleteConfirmPanel.SetActive(false));
+        backButton?.onClick.AddListener(OnBack);
+        confirmYes?.onClick.AddListener(OnConfirmYes);
+        confirmNo ?.onClick.AddListener(() => confirmPanel?.SetActive(false));
 
         for (int i = 0; i < slots.Length; i++)
         {
@@ -75,23 +88,23 @@ public class SlotsScreenManager : MonoBehaviour
             ApplySlotSprites(idx);
             RefreshSlotUI(idx);
 
-            if (slots[i].cardButton == null) continue;
+            if (slots[i].cardButton != null)
+            {
+                var nav = slots[i].cardButton.navigation;
+                nav.mode = Navigation.Mode.None;
+                slots[i].cardButton.navigation = nav;
+                slots[i].cardButton.onClick.AddListener(() => OnCardClick(idx));
+            }
 
-            // Desactivar navegación con teclado para evitar selección involuntaria
-            var nav = slots[i].cardButton.navigation;
-            nav.mode = Navigation.Mode.None;
-            slots[i].cardButton.navigation = nav;
+            if (slots[i].restartButton != null)
+                slots[i].restartButton.onClick.AddListener(() => OnRestartClick(idx));
 
-            slots[i].cardButton.onClick.AddListener(() => SelectSlot(idx));
+            if (slots[i].deleteButton != null)
+                slots[i].deleteButton.onClick.AddListener(() => OnDeleteClick(idx));
         }
-
-        RefreshGlobalButtons();
     }
 
-    // ── Sprites ──────────────────────────────────────────────────────────
-    // Asigna los sprites correctos (vacío o lleno) al SpriteSwap del botón.
-    // Unity maneja hover/press automáticamente; el estado Selected queda
-    // persistente vía EventSystem.current.SetSelectedGameObject().
+    // ── Sprites ───────────────────────────────────────────────────────────────
     private void ApplySlotSprites(int idx)
     {
         if (slots[idx].cardButton == null) return;
@@ -107,90 +120,145 @@ public class SlotsScreenManager : MonoBehaviour
         };
     }
 
-    // ── Render contenido tarjeta ──────────────────────────────────────────
+    // ── Contenido de tarjeta ─────────────────────────────────────────────────
     private void RefreshSlotUI(int idx)
     {
-        bool occupied = !_saves[idx].isEmpty;
-        slots[idx].emptyState   ?.SetActive(!occupied);
-        slots[idx].occupiedState?.SetActive(occupied);
+        bool filled = !_saves[idx].isEmpty;
 
-        if (!occupied) return;
+        slots[idx].emptyState   ?.SetActive(!filled);
+        slots[idx].occupiedState?.SetActive(filled);
+        slots[idx].statusText   ?.gameObject.SetActive(!filled);
+        slots[idx].restartButton?.gameObject.SetActive(filled);
+        slots[idx].deleteButton ?.gameObject.SetActive(filled);
 
-        if (slots[idx].levelText    != null)
-            slots[idx].levelText.text    = $"NIV. {_saves[idx].level}";
-        if (slots[idx].zoneText     != null)
-            slots[idx].zoneText.text     = _saves[idx].zoneName;
-        if (slots[idx].playTimeText != null)
-            slots[idx].playTimeText.text = FormatTime(_saves[idx].playTimeSeconds);
+        if (filled)
+        {
+            string time = FormatTime(_saves[idx].playTimeSeconds);
+            if (slots[idx].slotTitleText  != null)
+                slots[idx].slotTitleText.text  = $"{_saves[idx].zoneName}  {time}";
+            if (slots[idx].subtitleText   != null)
+                slots[idx].subtitleText.text   = "Continuar partida";
+        }
+        else
+        {
+            if (slots[idx].slotTitleText != null)
+                slots[idx].slotTitleText.text  = $"Slot {idx + 1}";
+            if (slots[idx].subtitleText  != null)
+                slots[idx].subtitleText.text   = "Nueva partida";
+        }
     }
 
-    // ── Selección ─────────────────────────────────────────────────────────
-    private void SelectSlot(int idx)
+    // ── Acciones de tarjeta ──────────────────────────────────────────────────
+    private void OnCardClick(int idx)
     {
-        _selectedSlot = idx;
-        // EventSystem pone la tarjeta en estado Selected (muestra selectedSprite = hover)
-        // y quita Selected del anterior automáticamente.
-        EventSystem.current?.SetSelectedGameObject(slots[idx].cardButton?.gameObject);
-        RefreshGlobalButtons();
+        if (_saves[idx].isEmpty) StartNewGame(idx);
+        else                     ContinueGame(idx);
     }
 
-    // ── Botones globales ──────────────────────────────────────────────────
-    private void OnBack()
+    private void OnRestartClick(int idx)
     {
-        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("MainMenu");
-        else SceneManager.LoadScene("MainMenu");
+        _pendingActionSlot = idx;
+        _pendingIsRestart  = true;
+        ShowConfirm($"¿Reiniciar la partida del Slot {idx + 1}?\nSe perderá todo el progreso.");
     }
 
-    private void OnSelect()
+    private void OnDeleteClick(int idx)
     {
-        if (_selectedSlot < 0) return;
-        if (_saves[_selectedSlot].isEmpty) StartNewGame(_selectedSlot);
-        else                               ContinueGame(_selectedSlot);
+        _pendingActionSlot = idx;
+        _pendingIsRestart  = false;
+        ShowConfirm($"¿Eliminar la partida del Slot {idx + 1}?");
     }
 
-    private void OnDelete()
+    private void ShowConfirm(string msg)
     {
-        if (_selectedSlot < 0 || _saves[_selectedSlot].isEmpty) return;
-        deleteConfirmPanel?.SetActive(true);
+        if (confirmText != null) confirmText.text = msg;
+        confirmPanel?.SetActive(true);
     }
 
-    private void ConfirmDelete()
+    private void OnConfirmYes()
     {
-        if (_selectedSlot < 0) return;
-        SaveManager.Instance?.Delete(_selectedSlot);
-        deleteConfirmPanel?.SetActive(false);
-        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("SlotsScreen");
-        else SceneManager.LoadScene("SlotsScreen");
+        if (_pendingActionSlot < 0) return;
+        confirmPanel?.SetActive(false);
+
+        if (_pendingIsRestart)
+        {
+            SaveManager.Instance?.Delete(_pendingActionSlot);
+            StartNewGame(_pendingActionSlot);
+        }
+        else
+        {
+            SaveManager.Instance?.Delete(_pendingActionSlot);
+            _saves[_pendingActionSlot] = new SaveData();
+            ApplySlotSprites(_pendingActionSlot);
+            RefreshSlotUI(_pendingActionSlot);
+        }
+        _pendingActionSlot = -1;
     }
 
-    private void RefreshGlobalButtons()
-    {
-        bool hasSlot    = _selectedSlot >= 0;
-        bool isOccupied = hasSlot && !_saves[_selectedSlot].isEmpty;
-
-        if (deleteButton != null) deleteButton.interactable = isOccupied;
-        if (selectButton != null) selectButton.interactable = hasSlot;
-
-        if (selectButtonLabel != null)
-            selectButtonLabel.text = (hasSlot && isOccupied) ? "CONTINUAR" : "NUEVA PARTIDA";
-    }
-
-    // ── Acciones de partida ───────────────────────────────────────────────
+    // ── Partidas ─────────────────────────────────────────────────────────────
     private void StartNewGame(int slot)
     {
         var data = new SaveData { isEmpty = false, slotName = $"Partida {slot + 1}", zoneName = "Inicio" };
         SaveManager.Instance?.Save(slot, data);
         SaveManager.Instance?.SelectSlot(slot);
-        // Nueva partida → intro cinemática primero; ContinueGame va directo al juego
         if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("Intro");
         else SceneManager.LoadScene("Intro");
     }
 
     private void ContinueGame(int slot)
     {
+        var data = SaveManager.Instance != null ? SaveManager.Instance.Load(slot) : null;
         SaveManager.Instance?.SelectSlot(slot);
-        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("HV01_Interior");
-        else SceneManager.LoadScene("HV01_Interior");
+
+        // Spawn en el punto "default" de la escena guardada (Patrón: Command — encapsula la
+        // intención de spawn antes de la carga para que PlayerSpawnManager la ejecute).
+        PlayerSpawnManager.NextSpawnId = "default";
+
+        string scene = (data != null && !string.IsNullOrEmpty(data.sceneName))
+            ? data.sceneName : "HV01_Interior";
+
+        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene(scene);
+        else SceneManager.LoadScene(scene);
+    }
+
+    private void OnBack()
+    {
+        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("MainMenu");
+        else SceneManager.LoadScene("MainMenu");
+    }
+
+    // ── Background video ──────────────────────────────────────────────────────
+    // Dual-path: si viene de MainMenu usa BackgroundVideoManager (Singleton);
+    // si abre la escena directamente, levanta un VideoPlayer local.
+    private void SetupBackground()
+    {
+        if (BackgroundVideoManager.Instance != null)
+        {
+            // Asignar la RT al RawImage directamente (no esperar a BackgroundVideoDisplay)
+            var bvp = BackgroundVideoManager.Instance.GetComponent<VideoPlayer>();
+            if (bvp != null && backgroundImage != null)
+            {
+                if (bvp.targetTexture != null)
+                    backgroundImage.texture = bvp.targetTexture;
+            }
+            BackgroundVideoManager.Instance.SwitchClip(slotsBgClip);
+        }
+        else if (backgroundImage != null && slotsBgClip != null)
+        {
+            // Sin BackgroundVideoManager — VideoPlayer local en el mismo GO del RawImage
+            var vp = backgroundImage.gameObject.GetComponent<VideoPlayer>();
+            if (vp == null) vp = backgroundImage.gameObject.AddComponent<VideoPlayer>();
+            vp.isLooping       = true;
+            vp.audioOutputMode = VideoAudioOutputMode.None;
+            vp.renderMode      = VideoRenderMode.RenderTexture;
+            vp.clip            = slotsBgClip;
+
+            var rt = new RenderTexture(Screen.width, Screen.height, 0);
+            rt.Create();
+            vp.targetTexture      = rt;
+            backgroundImage.texture = rt;
+            vp.Play();
+        }
     }
 
     static string FormatTime(float s)

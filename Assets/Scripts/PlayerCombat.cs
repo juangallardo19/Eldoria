@@ -15,13 +15,16 @@ using UnityEngine;
 [RequireComponent(typeof(PlayerController))]
 public class PlayerCombat : MonoBehaviour
 {
-    [Header("Duración de cada golpe — clip / 1.5 (Animator speed = 1.5x)")]
-    [SerializeField] private float combo1Duration = 0.45f;   // 0.667 / 1.5
-    [SerializeField] private float combo2Duration = 0.61f;   // 0.917 / 1.5
-    [SerializeField] private float combo3Duration = 0.72f;   // 1.083 / 1.5
+    [Header("Duración de cada golpe (reducida para ataques rápidos)")]
+    [SerializeField] private float combo1Duration = 0.32f;
+    [SerializeField] private float combo2Duration = 0.44f;
+    [SerializeField] private float combo3Duration = 0.54f;
 
     [Header("Ventana de encadenado (segundos antes del final del golpe)")]
-    [SerializeField] private float comboWindow = 0.20f;
+    [SerializeField] private float comboWindow = 0.18f;
+
+    [Header("Nombre del estado Idle en el Animator (para saltar animación de fin de ataque)")]
+    [SerializeField] private string idleStateName = "Idle";
 
     [Header("Hitbox — hijo 'AttackHitbox' (se crea auto si está vacío)")]
     [SerializeField] private BoxCollider2D hitbox;
@@ -47,12 +50,14 @@ public class PlayerCombat : MonoBehaviour
     private static readonly int _hashAtk1 = Animator.StringToHash("IsAttacking1");
     private static readonly int _hashAtk2 = Animator.StringToHash("IsAttacking2");
     private static readonly int _hashAtk3 = Animator.StringToHash("IsAttacking3");
+    private int _hashIdle;
 
     // ─────────────────────────────────────────────────────────────────────────
     void Awake()
     {
-        _ctrl = GetComponent<PlayerController>();
-        _anim = GetComponent<Animator>();
+        _ctrl      = GetComponent<PlayerController>();
+        _anim      = GetComponent<Animator>();
+        _hashIdle  = Animator.StringToHash(idleStateName);
 
         if (hitbox == null)
             hitbox = CreateHitbox();
@@ -123,7 +128,8 @@ public class PlayerCombat : MonoBehaviour
         _comboStep  = 0;
         _nextQueued = false;
         if (hitbox != null) hitbox.enabled = false;
-        // El Animator vuelve a Idle por ExitTime automáticamente; no hace falta reset.
+        // CrossFade instantáneo a Idle para saltar la animación de fin (espada desapareciendo).
+        if (_anim != null) _anim.CrossFade(_hashIdle, 0.08f, 0);
     }
 
     // ── Daño ──────────────────────────────────────────────────────────────────

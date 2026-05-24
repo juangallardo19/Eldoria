@@ -4,6 +4,7 @@ public class SaveData
     public bool   isEmpty         = true;
     public string slotName        = "Partida";
     public string zoneName        = "Inicio";
+    public string sceneName       = "";        // nombre de escena Unity para recargar al continuar
     public float  playTimeSeconds = 0f;
     public int    level           = 1;
     public int    health          = 3;
