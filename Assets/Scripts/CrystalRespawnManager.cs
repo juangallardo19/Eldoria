@@ -21,6 +21,7 @@ public class CrystalRespawnManager : MonoBehaviour
     private bool             _isBlinking;   // invencibilidad vs enemigos (durante el blink)
     private PlayerController _player;
     private SpriteRenderer   _playerSR;
+    private PlayerAnimator   _playerAnim;
 
     // Enemigos consultan este flag para saber si no deben aplicar daño.
     public bool IsBlinking => _isBlinking;
@@ -47,6 +48,7 @@ public class CrystalRespawnManager : MonoBehaviour
         {
             _lastSafePos = _player.transform.position;
             _playerSR    = _player.GetComponent<SpriteRenderer>();
+            _playerAnim  = _player.GetComponent<PlayerAnimator>();
         }
     }
 
@@ -55,8 +57,9 @@ public class CrystalRespawnManager : MonoBehaviour
         if (_isRespawning) return;
         if (_player == null)
         {
-            _player   = FindObjectOfType<PlayerController>();
-            _playerSR = _player != null ? _player.GetComponent<SpriteRenderer>() : null;
+            _player     = FindObjectOfType<PlayerController>();
+            _playerSR   = _player != null ? _player.GetComponent<SpriteRenderer>()  : null;
+            _playerAnim = _player != null ? _player.GetComponent<PlayerAnimator>()   : null;
         }
         if (_player == null) return;
 
@@ -73,6 +76,9 @@ public class CrystalRespawnManager : MonoBehaviour
     private IEnumerator RespawnCoroutine()
     {
         _isRespawning = true;
+
+        // Disparar animación de daño antes de congelar el controlador
+        _playerAnim?.TriggerHurt();
 
         var rb = _player.GetComponent<Rigidbody2D>();
         _player.enabled = false;
