@@ -62,6 +62,10 @@ public class SceneFader : MonoBehaviour
         yield return StartCoroutine(FadeIn());
     }
 
+    // Llamados internamente y expuestos para respawn/hazard sin cambio de escena.
+    public Coroutine FadeOutAsync() => StartCoroutine(FadeOut());
+    public Coroutine FadeInAsync()  => StartCoroutine(FadeIn());
+
     private IEnumerator FadeOut()
     {
         float t = 0f;

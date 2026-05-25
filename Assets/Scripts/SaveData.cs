@@ -7,7 +7,7 @@ public class SaveData
     public string sceneName       = "";        // nombre de escena Unity para recargar al continuar
     public float  playTimeSeconds = 0f;
     public int    level           = 1;
-    public int    health          = 3;
+    public int    health          = 5;
     public float  posX            = 0f;
     public float  posY            = 0f;
 }

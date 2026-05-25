@@ -62,4 +62,13 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Montanas/MTN05.unity
     guid: 246325f7952da1d48bf120027f84407e
+  - enabled: 1
+    path: Assets/Scenes/Montanas/MTN06.unity
+    guid: 02de542e51ca35f4a898a4a986a896d2
+  - enabled: 1
+    path: Assets/Scenes/Montanas/MTN08.unity
+    guid: 40bec7c823af9554b8a1d5335b6061c6
+  - enabled: 1
+    path: Assets/Scenes/Montanas/MTN09.unity
+    guid: 4458779111d5a854c8a64ec3298dd75b
   m_configObjects: {}
