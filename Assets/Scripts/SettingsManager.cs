@@ -410,10 +410,15 @@ public class SettingsManager : MonoBehaviour
         backButton?.onClick.AddListener(() =>
         {
             PlayerPrefs.Save();
+            // Si venimos de una pausa en juego, volvemos a esa escena
+            string target = !string.IsNullOrEmpty(PauseMenuManager.ReturnScene)
+                ? PauseMenuManager.ReturnScene
+                : "MainMenu";
+            PauseMenuManager.ReturnScene = null;
             if (SceneFader.Instance != null)
-                SceneFader.Instance.LoadScene("MainMenu");
+                SceneFader.Instance.LoadScene(target);
             else
-                SceneManager.LoadScene("MainMenu");
+                SceneManager.LoadScene(target);
         });
     }
 

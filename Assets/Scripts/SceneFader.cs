@@ -10,6 +10,11 @@ public class SceneFader : MonoBehaviour
     [SerializeField] private float fadeDuration = 0.4f;
 
     private Image fadeImage;
+    private bool _isFading;
+
+    // True mientras hay un fade en curso (transición o respawn local).
+    // Bloquea llamadas concurrentes a LoadScene para evitar doble-carga.
+    public bool IsFading => _isFading;
 
     void Awake()
     {
@@ -52,19 +57,34 @@ public class SceneFader : MonoBehaviour
 
     public void LoadScene(string sceneName)
     {
+        if (_isFading) return;
         StartCoroutine(FadeAndLoad(sceneName));
     }
 
     private IEnumerator FadeAndLoad(string sceneName)
     {
+        _isFading = true;
         yield return StartCoroutine(FadeOut());
         SceneManager.LoadScene(sceneName);
         yield return StartCoroutine(FadeIn());
+        _isFading = false;
     }
 
-    // Llamados internamente y expuestos para respawn/hazard sin cambio de escena.
-    public Coroutine FadeOutAsync() => StartCoroutine(FadeOut());
-    public Coroutine FadeInAsync()  => StartCoroutine(FadeIn());
+    // Expuestos para respawn/hazard sin cambio de escena (CrystalRespawnManager).
+    // Marcan _isFading para que LoadScene no se dispare durante el respawn local.
+    public Coroutine FadeOutAsync()
+    {
+        _isFading = true;
+        return StartCoroutine(FadeOut());
+    }
+
+    public Coroutine FadeInAsync() => StartCoroutine(FadeInAndClear());
+
+    private IEnumerator FadeInAndClear()
+    {
+        yield return StartCoroutine(FadeIn());
+        _isFading = false;
+    }
 
     private IEnumerator FadeOut()
     {

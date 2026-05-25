@@ -14,7 +14,9 @@ public class SceneBoundary : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
+        if (string.IsNullOrEmpty(targetScene)) return;
         if (!other.CompareTag("Player")) return;
+        if (SceneFader.Instance != null && SceneFader.Instance.IsFading) return;
 
         PlayerSpawnManager.NextSpawnId = spawnId;
 
