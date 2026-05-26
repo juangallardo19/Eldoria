@@ -40,6 +40,8 @@ public class GameSaveController : MonoBehaviour
         { "MTN06",             "Laboratorio en Ruinas" },
         { "MTN08",             "Cruce de Vetas" },
         { "MTN09",             "Antesala del Boss" },
+        { "PreMTN10",          "Pasillo del Boss" },
+        { "MTN10",             "Sala de la Obsesión" },
     };
 
     // ─────────────────────────────────────────────────────────────────────────

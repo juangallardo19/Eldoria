@@ -13,8 +13,21 @@ public class PlayerSpawnManager : MonoBehaviour
 {
     public static PlayerSpawnManager Instance { get; private set; }
 
+    // Garantiza que siempre exista un PSM, incluso si la escena no tiene uno.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    static void Bootstrap()
+    {
+        if (Instance != null) return;
+        var go = new GameObject("[PlayerSpawnManager]");
+        go.AddComponent<PlayerSpawnManager>();
+    }
+
     // Escribir antes de cargar la escena destino para controlar dónde aparece el jugador.
     public static string NextSpawnId = "default";
+
+    // Santuario: posición de reaparición sin necesitar un SpawnPoint en escena.
+    public static bool    UsePositionOverride    = false;
+    public static Vector2 OverridePositionValue  = Vector2.zero;
 
     private bool _isFirstInstance;
     // sceneLoaded fires before Start(); this flag lets Start() skip PlacePlayer
@@ -57,6 +70,17 @@ public class PlayerSpawnManager : MonoBehaviour
 
         var player = GameObject.FindGameObjectWithTag("Player");
         if (player == null) { NextSpawnId = "default"; yield break; }
+
+        // Override de posición (usado por respawn en santuario de Ara)
+        if (UsePositionOverride)
+        {
+            var rbO = player.GetComponent<Rigidbody2D>();
+            if (rbO != null) rbO.velocity = Vector2.zero;
+            player.transform.position = OverridePositionValue;
+            UsePositionOverride   = false;
+            NextSpawnId           = "default";
+            yield break;
+        }
 
         SpawnPoint target = FindSpawnPoint(NextSpawnId);
 

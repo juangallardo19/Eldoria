@@ -1,12 +1,12 @@
 using UnityEngine;
 
-// Observer — lee el estado del PlayerController cada frame y actualiza los parámetros
-// del Animator. Separado del controlador para respetar el principio de responsabilidad única.
+// Observer — lee el estado de PlayerController cada frame y actualiza el Animator.
+// Separado del controlador para respetar el principio de responsabilidad única.
 //
-// Parámetros requeridos en el Animator Controller:
-//   Speed       (Float)   — velocidad horizontal absoluta
+// Parámetros en el AnimatorController:
+//   Speed       (Float)
 //   IsGrounded  (Bool)
-//   IsRunning   (Bool)    — modo correr activo (Shift toggle) + moviéndose en suelo
+//   IsRunning   (Bool)
 //   IsJumping   (Bool)
 //   IsFalling   (Bool)
 //   IsDashing   (Bool)
@@ -20,7 +20,6 @@ public class PlayerAnimator : MonoBehaviour
     private Animator         anim;
     private PlayerController ctrl;
 
-    // Hashes de parámetros — más eficiente que strings en Update
     private static readonly int PSpeed       = Animator.StringToHash("Speed");
     private static readonly int PIsGrounded  = Animator.StringToHash("IsGrounded");
     private static readonly int PIsRunning   = Animator.StringToHash("IsRunning");
@@ -48,7 +47,6 @@ public class PlayerAnimator : MonoBehaviour
         anim.SetBool (PIsWallSlide, ctrl.IsWallSliding);
     }
 
-    // Llamar desde sistemas de daño
     public void TriggerHurt() => anim.SetTrigger(PHurt);
     public void TriggerDie()  => anim.SetTrigger(PDie);
 }

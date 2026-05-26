@@ -24,8 +24,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float fastFallAccel  = 30f;   // aceleración extra al presionar ↓ mientras cae
 
     [Header("Dash")]
-    [SerializeField] private float dashForce    = 22f;
-    [SerializeField] private float dashDuration = 0.14f;
+    [SerializeField] private float dashForce    = 45f;
+    [SerializeField] private float dashDuration = 0.22f;
     [SerializeField] private float dashCooldown = 0.5f;
 
     [Header("Wall Slide / Jump")]
@@ -80,6 +80,7 @@ public class PlayerController : MonoBehaviour
     private float coyoteCounter;
     private float jumpBufferCounter;
     private bool  isDashingInternal;
+    private bool  _airDashUsed;        // dash consumido en el aire; se resetea al tocar suelo
     private float dashTimer;
     private float dashCooldownTimer;
     private bool  isOnWallL, isOnWallR;
@@ -90,6 +91,17 @@ public class PlayerController : MonoBehaviour
     // Buffer de contactos reutilizable (sin GC por frame)
     private readonly ContactPoint2D[] _contacts = new ContactPoint2D[8];
 
+    [Header("Sonidos del jugador")]
+    [SerializeField] private AudioClip jumpClip;
+    [SerializeField] private AudioClip landClip;
+    [SerializeField] private AudioClip walkClip;
+    [SerializeField] private AudioClip runClip;
+
+    private AudioSource _sfxSource;       // one-shots (salto, aterrizaje)
+    private AudioSource _footstepSource;  // loop (caminar / correr)
+    private bool        _wasGrounded;
+    private AudioClip   _lastFootClip;
+
     void Awake()
     {
         rb      = GetComponent<Rigidbody2D>();
@@ -97,6 +109,21 @@ public class PlayerController : MonoBehaviour
         _combat = GetComponent<PlayerCombat>();
         _baseScale = transform.localScale;
         groundLayer = 1 << 8;
+
+        // Crear dos AudioSources: uno para one-shots, otro para pasos en loop
+        _sfxSource             = gameObject.AddComponent<AudioSource>();
+        _sfxSource.playOnAwake = false;
+
+        _footstepSource             = gameObject.AddComponent<AudioSource>();
+        _footstepSource.loop        = true;
+        _footstepSource.playOnAwake = false;
+
+        // Auto-cargar clips desde Resources/Audio/Player/ si no están asignados en Inspector.
+        // Esto garantiza que los sonidos funcionen en TODAS las escenas sin asignación manual.
+        if (jumpClip == null) jumpClip = Resources.Load<AudioClip>("Audio/Player/jump");
+        if (landClip == null) landClip = Resources.Load<AudioClip>("Audio/Player/land");
+        if (walkClip == null) walkClip = Resources.Load<AudioClip>("Audio/Player/walk");
+        if (runClip  == null) runClip  = Resources.Load<AudioClip>("Audio/Player/run");
     }
 
     void Update()
@@ -123,12 +150,18 @@ public class PlayerController : MonoBehaviour
             ? jumpBufferTime
             : jumpBufferCounter - Time.deltaTime;
 
+        // Detectar aterrizaje (transición aire → suelo)
+        if (IsGrounded && !_wasGrounded && landClip != null)
+            _sfxSource.PlayOneShot(landClip);
+        _wasGrounded = IsGrounded;
+
         HandleDropThrough();
         HandleMovement();
         HandleJump();
         HandleJumpHold();
         HandleFastFall();
         HandleDash();
+        UpdateFootsteps();
         HandleWallSlide();
         HandleFloat();
         ApplyBetterGravity();
@@ -231,6 +264,7 @@ public class PlayerController : MonoBehaviour
             _isJumpAirborne   = true;
             FacingDir = dir;
             transform.localScale = new Vector3(dir * Mathf.Abs(_baseScale.x), _baseScale.y, 1f);
+            if (jumpClip != null) _sfxSource.PlayOneShot(jumpClip);
             return;
         }
 
@@ -244,6 +278,7 @@ public class PlayerController : MonoBehaviour
             _jumpHoldTimer    = jumpHoldTime;
             _airSpeed         = _runningMode ? runSpeed : walkSpeed;
             _isJumpAirborne   = true;
+            if (jumpClip != null) _sfxSource.PlayOneShot(jumpClip);
             return;
         }
 
@@ -255,6 +290,7 @@ public class PlayerController : MonoBehaviour
             jumpBufferCounter = 0f;
             _jumpHolding      = true;
             _jumpHoldTimer    = jumpHoldTime;
+            if (jumpClip != null) _sfxSource.PlayOneShot(jumpClip);
         }
     }
 
@@ -338,13 +374,16 @@ public class PlayerController : MonoBehaviour
     private void HandleDash()
     {
         if (!hasDash) return;
-        if (!Input.GetKeyDown(GetKey("Dash", KeyCode.LeftShift))) return;
+        if (IsGrounded) _airDashUsed = false;   // aterrizó → puede volver a usar dash en el aire
+        if (!Input.GetKeyDown(GetKey("Dash", KeyCode.C))) return;
         if (dashCooldownTimer > 0f || isDashingInternal) return;
+        if (!IsGrounded && _airDashUsed) return;   // ya usó el dash en el aire
 
         isDashingInternal = true;
         dashTimer         = dashDuration;
         dashCooldownTimer = dashCooldown;
         isFloating        = false;
+        if (!IsGrounded) _airDashUsed = true;   // marcar dash aéreo como usado
         rb.velocity       = new Vector2(FacingDir * dashForce, 0f);
         rb.gravityScale   = 0f;
     }
@@ -410,6 +449,31 @@ public class PlayerController : MonoBehaviour
     {
         IsJumping = !IsGrounded && rb.velocity.y > 0.1f;
         IsFalling = !IsGrounded && rb.velocity.y < -0.1f && !IsWallSliding;
+    }
+
+    // ── Sonido de pasos — caminar / correr ────────────────────────────────
+    private void UpdateFootsteps()
+    {
+        bool moving = IsGrounded && Mathf.Abs(rb.velocity.x) > 0.5f && !isDashingInternal;
+        AudioClip desired = moving ? (_runningMode ? runClip : walkClip) : null;
+
+        if (desired == null)
+        {
+            if (_footstepSource.isPlaying) _footstepSource.Stop();
+            _lastFootClip = null;
+            return;
+        }
+
+        if (desired != _lastFootClip)
+        {
+            _footstepSource.clip = desired;
+            _footstepSource.Play();
+            _lastFootClip = desired;
+        }
+        else if (!_footstepSource.isPlaying)
+        {
+            _footstepSource.Play();
+        }
     }
 
     // ── Helpers de teclas reasignables ────────────────────────────────────

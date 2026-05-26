@@ -1,30 +1,39 @@
 using System.Collections;
 using UnityEngine;
 
-// Singleton escena-local — gestiona respawn al tocar zonas de cristal.
-// Patrón Observer: Update rastrea IsGrounded del jugador para guardar última posición segura.
-// Patrón State (dos flags independientes):
-//   _isRespawning — activo durante FadeOut/Teleport/FadeIn: bloquea cristales Y enemigos.
-//   _isBlinking   — activo durante el parpadeo post-respawn: bloquea solo enemigos,
-//                   los cristales SIGUEN siendo letales (CrystalHazard ignora este flag).
+// Singleton escena-local — gestiona respawn al tocar cristales o recibir daño de boss.
+// Patrón Observer: Update rastrea IsGrounded → _lastSafePos.
+// Patrón State (dos flags):
+//   _isRespawning — durante FadeOut/Teleport/FadeIn: bloquea cristales Y enemigos.
+//   _isBlinking   — parpadeo post-respawn: bloquea solo enemigos (cristales SIGUEN matando).
+//
+// Flujo de muerte (0 vidas):
+//   TriggerDie() → animación death completa (1.92s) → FadeOut → santuario o SlotsScreen
+// Flujo de daño normal (>0 vidas):
+//   TriggerHurt() → FadeOut → teleport a lastSafePos → FadeIn → blink 2s
 public class CrystalRespawnManager : MonoBehaviour
 {
     public static CrystalRespawnManager Instance { get; private set; }
 
     [SerializeField] private int   defaultLives    = 5;
-    [SerializeField] private float blinkDuration   = 2f;   // segundos de parpadeo tras reaparecer
-    [SerializeField] private float blinkInterval   = 0.1f; // velocidad de cada destello
+    [SerializeField] private float blinkDuration   = 2f;
+    [SerializeField] private float blinkInterval   = 0.1f;
+    // Duración animación Death de Kael: 23 frames @ 12fps = 1.916s
+    [SerializeField] private float deathAnimDuration = 1.92f;
 
     private int              _lives;
     private Vector3          _lastSafePos;
-    private bool             _isRespawning; // bloquea cristales (solo durante fade+teleport)
-    private bool             _isBlinking;   // invencibilidad vs enemigos (durante el blink)
+    private bool             _isRespawning;
+    private bool             _isBlinking;
     private PlayerController _player;
     private SpriteRenderer   _playerSR;
     private PlayerAnimator   _playerAnim;
 
-    // Enemigos consultan este flag para saber si no deben aplicar daño.
-    public bool IsBlinking => _isBlinking;
+    public bool IsBlinking   => _isBlinking;
+    public bool IsRespawning => _isRespawning;
+    public int  Lives        => _lives;
+
+    // ── Ciclo de vida ────────────────────────────────────────────────────────
 
     void Awake()
     {
@@ -55,11 +64,12 @@ public class CrystalRespawnManager : MonoBehaviour
     void Update()
     {
         if (_isRespawning) return;
+
         if (_player == null)
         {
             _player     = FindObjectOfType<PlayerController>();
-            _playerSR   = _player != null ? _player.GetComponent<SpriteRenderer>()  : null;
-            _playerAnim = _player != null ? _player.GetComponent<PlayerAnimator>()   : null;
+            _playerSR   = _player != null ? _player.GetComponent<SpriteRenderer>() : null;
+            _playerAnim = _player != null ? _player.GetComponent<PlayerAnimator>()  : null;
         }
         if (_player == null) return;
 
@@ -67,20 +77,85 @@ public class CrystalRespawnManager : MonoBehaviour
             _lastSafePos = _player.transform.position;
     }
 
+    // ── API pública ──────────────────────────────────────────────────────────
+
+    // Llamado por CrystalHazard — ignora _isBlinking (cristales siempre son letales)
     public void TriggerHazard()
     {
         if (_isRespawning || _player == null) return;
-        StartCoroutine(RespawnCoroutine());
+        StartCoroutine(RespawnCoroutine(1));
     }
 
-    private IEnumerator RespawnCoroutine()
+    // Llamado por ataques del boss — respeta _isBlinking (post-respawn)
+    public void TakeBossDamage(int livesLost)
+    {
+        if (_isRespawning || _isBlinking || _player == null) return;
+        StartCoroutine(RespawnCoroutine(livesLost));
+    }
+
+    // Llamado por SanctuaryFlame al descansar
+    public void RestoreLives()
+    {
+        _lives = defaultLives;
+        PersistHealth();
+    }
+
+    // ── Respawn principal ────────────────────────────────────────────────────
+
+    private IEnumerator RespawnCoroutine(int livesLost)
     {
         _isRespawning = true;
 
-        // Disparar animación de daño antes de congelar el controlador
+        int livesAfter = Mathf.Max(0, _lives - livesLost);
+        var rb = _player.GetComponent<Rigidbody2D>();
+
+        if (livesAfter <= 0)
+        {
+            // ── Muerte: animación completa antes del fade ──────────────────
+            _playerAnim?.TriggerDie();
+
+            _player.enabled = false;
+            if (rb != null) { rb.velocity = Vector2.zero; rb.isKinematic = true; }
+
+            // Esperar a que termine la animación de muerte
+            yield return new WaitForSeconds(deathAnimDuration);
+
+            if (SceneFader.Instance != null) yield return SceneFader.Instance.FadeOutAsync();
+            else yield return new WaitForSeconds(0.4f);
+
+            _lives = 0;
+            PersistHealth();
+
+            // Intentar regresar al último santuario de Ara
+            string sanctScene = PlayerPrefs.GetString("SanctuaryScene", "");
+            if (!string.IsNullOrEmpty(sanctScene))
+            {
+                _lives = defaultLives;
+                PersistHealth();
+
+                float sx = PlayerPrefs.GetFloat("SanctuaryX", 0f);
+                float sy = PlayerPrefs.GetFloat("SanctuaryY", 0f);
+                PlayerSpawnManager.UsePositionOverride   = true;
+                PlayerSpawnManager.OverridePositionValue = new Vector2(sx, sy);
+
+                if (SceneFader.Instance != null) SceneFader.Instance.LoadScene(sanctScene);
+                else UnityEngine.SceneManagement.SceneManager.LoadScene(sanctScene);
+            }
+            else
+            {
+                // Sin santuario visitado: enviar al inicio de las Montañas con vidas completas
+                _lives = defaultLives;
+                PersistHealth();
+                PlayerSpawnManager.NextSpawnId = "default";
+                if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("MTN01_Exterior");
+                else UnityEngine.SceneManagement.SceneManager.LoadScene("MTN01_Exterior");
+            }
+            yield break;
+        }
+
+        // ── Daño normal: hurt → fade → teleport → blink ───────────────────
         _playerAnim?.TriggerHurt();
 
-        var rb = _player.GetComponent<Rigidbody2D>();
         _player.enabled = false;
         if (rb != null) { rb.velocity = Vector2.zero; rb.isKinematic = true; }
 
@@ -90,33 +165,23 @@ public class CrystalRespawnManager : MonoBehaviour
         _player.transform.position = _lastSafePos;
         if (rb != null) rb.velocity = Vector2.zero;
 
-        _lives = Mathf.Max(0, _lives - 1);
+        _lives = livesAfter;
         PersistHealth();
 
         if (SceneFader.Instance != null) yield return SceneFader.Instance.FadeInAsync();
         else yield return new WaitForSeconds(0.4f);
 
-        // Sin vidas: ir a pantalla de selección sin parpadeo
-        if (_lives <= 0)
-        {
-            SceneFader.Instance?.LoadScene("SlotsScreen");
-            yield break;
-        }
-
-        // Restaurar físicas e input antes de parpadear
         if (rb != null) { rb.isKinematic = false; rb.velocity = Vector2.zero; }
         _player.enabled = true;
 
-        // Cristales vuelven a ser letales inmediatamente; solo enemigos quedan bloqueados.
         _isRespawning = false;
         _isBlinking   = true;
-
         yield return StartCoroutine(BlinkCoroutine());
-
         _isBlinking = false;
     }
 
-    // Alterna SpriteRenderer.enabled rápidamente para simular invencibilidad post-respawn.
+    // ── Blink post-respawn ───────────────────────────────────────────────────
+
     private IEnumerator BlinkCoroutine()
     {
         if (_playerSR == null) yield break;
@@ -131,6 +196,8 @@ public class CrystalRespawnManager : MonoBehaviour
         _playerSR.enabled = true;
     }
 
+    // ── Persistencia ─────────────────────────────────────────────────────────
+
     private void PersistHealth()
     {
         if (SaveManager.Instance == null || SaveManager.ActiveSlot < 0) return;
@@ -138,6 +205,4 @@ public class CrystalRespawnManager : MonoBehaviour
         data.health = _lives;
         SaveManager.Instance.Save(SaveManager.ActiveSlot, data);
     }
-
-    public int Lives => _lives;
 }

@@ -16,9 +16,9 @@ using UnityEngine;
 public class PlayerCombat : MonoBehaviour
 {
     [Header("Duración de cada golpe (reducida para ataques rápidos)")]
-    [SerializeField] private float combo1Duration = 0.32f;
-    [SerializeField] private float combo2Duration = 0.44f;
-    [SerializeField] private float combo3Duration = 0.54f;
+    [SerializeField] private float combo1Duration = 0.25f;
+    [SerializeField] private float combo2Duration = 0.42f;
+    [SerializeField] private float combo3Duration = 0.50f;
 
     [Header("Ventana de encadenado (segundos antes del final del golpe)")]
     [SerializeField] private float comboWindow = 0.18f;
@@ -28,8 +28,8 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Hitbox — hijo 'AttackHitbox' (se crea auto si está vacío)")]
     [SerializeField] private BoxCollider2D hitbox;
-    [SerializeField] private Vector2 hitboxOffset = new Vector2(1.2f, 0f);
-    [SerializeField] private Vector2 hitboxSize   = new Vector2(1.8f, 1.5f);
+    [SerializeField] private Vector2 hitboxOffset = new Vector2(1.2f, 1.5f);
+    [SerializeField] private Vector2 hitboxSize   = new Vector2(3f, 3f);
 
     [Header("Daño por golpe")]
     [SerializeField] private int combo1Damage = 10;
@@ -114,10 +114,10 @@ public class PlayerCombat : MonoBehaviour
             }
         }
 
-        // Orientar hitbox según la dirección del jugador
+        // La hitbox es hijo del jugador y hereda su scale flip — no multiplicar por FacingDir.
         if (hitbox != null)
         {
-            hitbox.offset  = new Vector2(hitboxOffset.x * _ctrl.FacingDir, hitboxOffset.y);
+            hitbox.offset  = hitboxOffset;
             hitbox.size    = hitboxSize;
             hitbox.enabled = true;
         }
@@ -128,8 +128,7 @@ public class PlayerCombat : MonoBehaviour
         _comboStep  = 0;
         _nextQueued = false;
         if (hitbox != null) hitbox.enabled = false;
-        // CrossFade instantáneo a Idle para saltar la animación de fin (espada desapareciendo).
-        if (_anim != null) _anim.CrossFade(_hashIdle, 0.08f, 0);
+        if (_anim != null) _anim.Play(_hashIdle, 0, 0f);
     }
 
     // ── Daño ──────────────────────────────────────────────────────────────────
@@ -139,10 +138,16 @@ public class PlayerCombat : MonoBehaviour
         if (hitbox == null) return;
 
         int dmg = DamageOf(_comboStep);
-        Vector2 center = (Vector2)transform.position + hitbox.offset;
-        var hits = Physics2D.OverlapBoxAll(center, hitbox.size, 0f, enemyLayer);
+        Vector2 center = hitbox.bounds.center;
+
+        // Si enemyLayer no está configurado en Inspector (valor 0 = Nothing),
+        // usar DefaultRaycastLayers para detectar cualquier IDamageable en escena.
+        int mask = (int)enemyLayer != 0 ? (int)enemyLayer : Physics2D.DefaultRaycastLayers;
+        var hits = Physics2D.OverlapBoxAll(center, hitbox.size, 0f, mask);
+
         foreach (var col in hits)
         {
+            if (col.gameObject == gameObject) continue;  // no dañarse a sí mismo
             var dmgable = col.GetComponent<IDamageable>();
             if (dmgable != null) dmgable.TakeDamage(dmg);
         }
@@ -192,8 +197,7 @@ public class PlayerCombat : MonoBehaviour
     {
         if (_comboStep == 0 || hitbox == null) return;
         Gizmos.color = new Color(1f, 0.2f, 0.2f, 0.5f);
-        Vector3 c = transform.position + new Vector3(hitbox.offset.x, hitbox.offset.y, 0);
-        Gizmos.DrawCube(c, new Vector3(hitbox.size.x, hitbox.size.y, 0.1f));
+        Gizmos.DrawCube(hitbox.bounds.center, new Vector3(hitbox.size.x, hitbox.size.y, 0.1f));
     }
 #endif
 }
