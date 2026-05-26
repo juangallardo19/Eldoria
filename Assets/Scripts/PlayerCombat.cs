@@ -121,6 +121,8 @@ public class PlayerCombat : MonoBehaviour
             hitbox.size    = hitboxSize;
             hitbox.enabled = true;
         }
+
+        _ctrl.PlayAttackSound();
     }
 
     private void EndCombo()

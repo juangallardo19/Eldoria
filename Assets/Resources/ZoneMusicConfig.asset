@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ea65e15fd8dd9ce47b64d568d711600e, type: 3}
   m_Name: ZoneMusicConfig
   m_EditorClassIdentifier: 
+  menuMusic: {fileID: 8300000, guid: 78887218e1e97e84ca3bca67d548b012, type: 3}
   hvMusic: {fileID: 8300000, guid: 8e4489705fff79f4d8d540acaeea843e, type: 3}
   mtnMusic: {fileID: 8300000, guid: e67e927f07fee0f498c0dd2ba11688da, type: 3}
   caveAmbience: {fileID: 8300000, guid: fb3239ce79589f74db560245206ddf46, type: 3}
-  bossMusic: {fileID: 8300000, guid: 94023aa0fe9ec29409bed1647b35d4c2, type: 3}
+  bossMusic: {fileID: 8300000, guid: 493f82c8260ee0d40aff37a82cb6170a, type: 3}

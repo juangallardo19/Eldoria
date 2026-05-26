@@ -13,7 +13,7 @@ public class BossProjectile : MonoBehaviour
     private float _dir;
     private bool  _hit;
 
-    public void Init(float direction, Sprite sprite)
+    public void Init(float direction, Sprite sprite, float lifetimeOverride = -1f)
     {
         _dir = direction;
         var sr = GetComponent<SpriteRenderer>();
@@ -22,9 +22,9 @@ public class BossProjectile : MonoBehaviour
 
         var col       = GetComponent<BoxCollider2D>();
         col.isTrigger = true;
-        col.size      = new Vector2(0.5f, 0.5f);
+        col.size      = new Vector2(4f, 0.5f);
 
-        Destroy(gameObject, lifetime);
+        Destroy(gameObject, lifetimeOverride > 0f ? lifetimeOverride : lifetime);
     }
 
     void Update()

@@ -14,6 +14,9 @@ public class BossHealthBar : MonoBehaviour
     [SerializeField] private Sprite fullBarSprite;    // 100%.png
     [SerializeField] private Sprite emptyBarSprite;   // 0%.png
 
+    [Header("Fuente del nombre (asignar Perfect DOS VGA 437 Win SDF en Inspector)")]
+    [SerializeField] private TMP_FontAsset bossNameFont;
+
     private Canvas          _canvas;
     private CanvasGroup     _canvasGroup;
     private Image           _hpFill;
@@ -84,6 +87,16 @@ public class BossHealthBar : MonoBehaviour
 
     private void BuildUI()
     {
+        // Auto-cargar la fuente del juego si no fue asignada en el Inspector
+#if UNITY_EDITOR
+        if (bossNameFont == null)
+            bossNameFont = UnityEditor.AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>(
+                "Assets/UI/Fonts/Perfect DOS VGA 437 Win SDF.asset");
+#else
+        if (bossNameFont == null)
+            bossNameFont = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Perfect DOS VGA 437 Win SDF");
+#endif
+
         var canvasGO = new GameObject("BossHUD_Canvas");
         canvasGO.transform.SetParent(transform);
         _canvas = canvasGO.AddComponent<Canvas>();
@@ -101,33 +114,55 @@ public class BossHealthBar : MonoBehaviour
 
         // Sprites 2172×724px → aspect ratio 3:1 exacto
         // A 690px de ancho → alto = 690 / (2172/724) = 230px
-        const float BAR_W = 690f;
-        const float BAR_H = 230f;
+        const float BAR_W  = 690f;
+        const float BAR_H  = 230f;
+        const float NAME_H = 56f;
+        const float GAP    = 2f;
 
-        // ── Nombre del boss (arriba de la barra) ─────────────────────────────
+        // ── Contenedor padre: posiciona todo el HUD a 10px del borde superior ─
+        var hudGO = new GameObject("HUDGroup");
+        hudGO.transform.SetParent(canvasGO.transform, false);
+        var hudRt = hudGO.AddComponent<RectTransform>();
+        hudRt.anchorMin        = new Vector2(0.5f, 1f);
+        hudRt.anchorMax        = new Vector2(0.5f, 1f);
+        hudRt.pivot            = new Vector2(0.5f, 1f);
+        hudRt.anchoredPosition = new Vector2(0f, -10f);
+        hudRt.sizeDelta        = new Vector2(BAR_W, NAME_H + GAP + BAR_H);
+
+        // ── Nombre del boss — arriba del todo dentro del HUDGroup ────────────
         var nameGO = new GameObject("BossName");
-        nameGO.transform.SetParent(canvasGO.transform, false);
+        nameGO.transform.SetParent(hudGO.transform, false);
         _nameText = nameGO.AddComponent<TextMeshProUGUI>();
         _nameText.text      = "LA OBSESIÓN";
-        _nameText.fontSize  = 26;
+        _nameText.fontSize  = 48;
+        _nameText.fontStyle = FontStyles.Bold;
         _nameText.alignment = TextAlignmentOptions.Center;
-        _nameText.color     = new Color(1f, 0.85f, 0.5f);
+        if (bossNameFont != null) _nameText.font = bossNameFont;
+
+        // Gradiente dorado arriba → ámbar oscuro abajo
+        _nameText.enableVertexGradient = true;
+        _nameText.colorGradient = new VertexGradient(
+            new Color(1f, 0.97f, 0.65f),
+            new Color(1f, 0.97f, 0.65f),
+            new Color(1f, 0.42f, 0.08f),
+            new Color(1f, 0.42f, 0.08f)
+        );
         var nrt = nameGO.GetComponent<RectTransform>();
         nrt.anchorMin        = new Vector2(0.5f, 1f);
         nrt.anchorMax        = new Vector2(0.5f, 1f);
         nrt.pivot            = new Vector2(0.5f, 1f);
-        nrt.anchoredPosition = new Vector2(0f, -4f);
-        nrt.sizeDelta        = new Vector2(BAR_W, 32f);
+        nrt.anchoredPosition = new Vector2(0f, 0f);
+        nrt.sizeDelta        = new Vector2(BAR_W, NAME_H);
 
-        // ── Contenedor de la barra ────────────────────────────────────────────
+        // ── Contenedor de la barra — justo debajo del título ─────────────────
         var barGO = new GameObject("BarContainer");
-        barGO.transform.SetParent(canvasGO.transform, false);
+        barGO.transform.SetParent(hudGO.transform, false);
         barGO.AddComponent<RectTransform>();
         var brt = barGO.GetComponent<RectTransform>();
         brt.anchorMin        = new Vector2(0.5f, 1f);
         brt.anchorMax        = new Vector2(0.5f, 1f);
         brt.pivot            = new Vector2(0.5f, 1f);
-        brt.anchoredPosition = new Vector2(0f, -40f);
+        brt.anchoredPosition = new Vector2(0f, -(NAME_H + GAP));
         brt.sizeDelta        = new Vector2(BAR_W, BAR_H);
 
         // Capa 1: barra vacía — 0%.png, siempre visible

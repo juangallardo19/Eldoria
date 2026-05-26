@@ -6,6 +6,9 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Eldoria/Zone Music Config")]
 public class ZoneMusicConfig : ScriptableObject
 {
+    [Header("Menú principal / SlotsScreen")]
+    public AudioClip menuMusic;
+
     [Header("Zonas HV")]
     public AudioClip hvMusic;
 

@@ -69,6 +69,12 @@ public class PlayerSpawnManager : MonoBehaviour
         yield return null;
 
         var player = GameObject.FindGameObjectWithTag("Player");
+        // Fallback: si no tiene tag "Player", buscar por componente
+        if (player == null)
+        {
+            var pc = FindObjectOfType<PlayerController>();
+            if (pc != null) player = pc.gameObject;
+        }
         if (player == null) { NextSpawnId = "default"; yield break; }
 
         // Override de posición (usado por respawn en santuario de Ara)

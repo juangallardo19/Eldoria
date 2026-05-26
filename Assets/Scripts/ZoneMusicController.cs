@@ -54,9 +54,13 @@ public class ZoneMusicController : MonoBehaviour
     {
         if (_config == null || AudioManager.Instance == null) return;
 
-        if (sceneName.StartsWith("HV"))
+        if (sceneName.StartsWith("HV") && sceneName != "HV07")
         {
             AudioManager.Instance.PlayMusic(_config.hvMusic);
+        }
+        else if (sceneName == "HV07")
+        {
+            AudioManager.Instance.StopMusic();   // corredor silencioso entre Hub y Montañas
         }
         else if (sceneName.StartsWith("MTN") && sceneName != "MTN10")
         {
@@ -70,11 +74,15 @@ public class ZoneMusicController : MonoBehaviour
         {
             AudioManager.Instance.StopMusic();
         }
-        else if (sceneName == "MainMenu" || sceneName == "SlotsScreen" ||
-                 sceneName == "Intro"    || sceneName == "Settings")
+        else if (sceneName == "MainMenu" || sceneName == "SlotsScreen")
+        {
+            AudioManager.Instance.PlayMusic(_config.menuMusic);
+        }
+        else if (sceneName == "Intro")
         {
             AudioManager.Instance.StopMusic();
         }
+        // Settings no cambia la música — hereda lo que esté sonando (Hub, Montañas o menú)
     }
 
     void OnBossPhaseChanged(BossObsesion.BossPhase phase)

@@ -10,4 +10,5 @@ public class SaveData
     public int    health          = 5;
     public float  posX            = 0f;
     public float  posY            = 0f;
+    public bool   bossDefeated    = false;     // La Obsesión derrotada — no reaparece nunca
 }

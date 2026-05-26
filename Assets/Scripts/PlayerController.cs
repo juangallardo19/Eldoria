@@ -96,11 +96,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private AudioClip landClip;
     [SerializeField] private AudioClip walkClip;
     [SerializeField] private AudioClip runClip;
+    [SerializeField] private AudioClip attackClip;
+    [SerializeField] private AudioClip hurtClip;
 
-    private AudioSource _sfxSource;       // one-shots (salto, aterrizaje)
-    private AudioSource _footstepSource;  // loop (caminar / correr)
+    private AudioSource _sfxSource;   // one-shots (salto, aterrizaje, ataque, daño, pasos)
     private bool        _wasGrounded;
-    private AudioClip   _lastFootClip;
+    private float       _airtime;           // tiempo consecutivo en el aire
+    [SerializeField] private float minAirtimeForLandSound = 0.25f;
 
     void Awake()
     {
@@ -110,20 +112,22 @@ public class PlayerController : MonoBehaviour
         _baseScale = transform.localScale;
         groundLayer = 1 << 8;
 
-        // Crear dos AudioSources: uno para one-shots, otro para pasos en loop
+        // Garantizar que el HUD de vidas exista en cualquier escena con jugador.
+        // PlayerLivesHUD es DontDestroyOnLoad; si ya existe de una escena anterior, este Awake no hace nada.
+        if (FindObjectOfType<PlayerLivesHUD>() == null)
+            new GameObject("PlayerLivesHUD").AddComponent<PlayerLivesHUD>();
+
+        // AudioSource para one-shots (salto, aterrizaje, ataque, daño, pasos)
         _sfxSource             = gameObject.AddComponent<AudioSource>();
         _sfxSource.playOnAwake = false;
 
-        _footstepSource             = gameObject.AddComponent<AudioSource>();
-        _footstepSource.loop        = true;
-        _footstepSource.playOnAwake = false;
-
         // Auto-cargar clips desde Resources/Audio/Player/ si no están asignados en Inspector.
-        // Esto garantiza que los sonidos funcionen en TODAS las escenas sin asignación manual.
-        if (jumpClip == null) jumpClip = Resources.Load<AudioClip>("Audio/Player/jump");
-        if (landClip == null) landClip = Resources.Load<AudioClip>("Audio/Player/land");
-        if (walkClip == null) walkClip = Resources.Load<AudioClip>("Audio/Player/walk");
-        if (runClip  == null) runClip  = Resources.Load<AudioClip>("Audio/Player/run");
+        if (jumpClip   == null) jumpClip   = Resources.Load<AudioClip>("Audio/Player/jump");
+        if (landClip   == null) landClip   = Resources.Load<AudioClip>("Audio/Player/land");
+        if (walkClip   == null) walkClip   = Resources.Load<AudioClip>("Audio/Player/walk");
+        if (runClip    == null) runClip    = Resources.Load<AudioClip>("Audio/Player/run");
+        if (attackClip == null) attackClip = Resources.Load<AudioClip>("Audio/Player/attack");
+        if (hurtClip   == null) hurtClip   = Resources.Load<AudioClip>("Audio/Player/hurt");
     }
 
     void Update()
@@ -150,9 +154,15 @@ public class PlayerController : MonoBehaviour
             ? jumpBufferTime
             : jumpBufferCounter - Time.deltaTime;
 
-        // Detectar aterrizaje (transición aire → suelo)
-        if (IsGrounded && !_wasGrounded && landClip != null)
-            _sfxSource.PlayOneShot(landClip);
+        // Detectar aterrizaje: solo suena si el jugador estuvo suficiente tiempo en el aire.
+        // Evita que el sonido se dispare por micro-contactos con plataformas o rampas.
+        if (!IsGrounded) _airtime += Time.deltaTime;
+        if (IsGrounded && !_wasGrounded)
+        {
+            if (landClip != null && _airtime >= minAirtimeForLandSound)
+                _sfxSource.PlayOneShot(landClip);
+            _airtime = 0f;
+        }
         _wasGrounded = IsGrounded;
 
         HandleDropThrough();
@@ -161,7 +171,6 @@ public class PlayerController : MonoBehaviour
         HandleJumpHold();
         HandleFastFall();
         HandleDash();
-        UpdateFootsteps();
         HandleWallSlide();
         HandleFloat();
         ApplyBetterGravity();
@@ -451,30 +460,19 @@ public class PlayerController : MonoBehaviour
         IsFalling = !IsGrounded && rb.velocity.y < -0.1f && !IsWallSliding;
     }
 
-    // ── Sonido de pasos — caminar / correr ────────────────────────────────
-    private void UpdateFootsteps()
+    // ── Sonido de pasos — llamado por Animation Events en Walk.anim y Run.anim ─
+    // Agregar eventos en Unity: Animation window → frame de impacto del pie → función "OnFootstep".
+    public void OnFootstep()
     {
-        bool moving = IsGrounded && Mathf.Abs(rb.velocity.x) > 0.5f && !isDashingInternal;
-        AudioClip desired = moving ? (_runningMode ? runClip : walkClip) : null;
-
-        if (desired == null)
-        {
-            if (_footstepSource.isPlaying) _footstepSource.Stop();
-            _lastFootClip = null;
-            return;
-        }
-
-        if (desired != _lastFootClip)
-        {
-            _footstepSource.clip = desired;
-            _footstepSource.Play();
-            _lastFootClip = desired;
-        }
-        else if (!_footstepSource.isPlaying)
-        {
-            _footstepSource.Play();
-        }
+        if (!IsGrounded || isDashingInternal) return;
+        if (_combat != null && _combat.IsAttacking) return;
+        AudioClip clip = _runningMode ? (runClip != null ? runClip : walkClip) : walkClip;
+        if (clip != null) _sfxSource.PlayOneShot(clip);
     }
+
+    // ── Sonidos de ataque y daño (llamados desde PlayerCombat / CrystalRespawnManager) ──
+    public void PlayAttackSound() { if (attackClip != null) _sfxSource.PlayOneShot(attackClip); }
+    public void PlayHurtSound()   { if (hurtClip   != null) _sfxSource.PlayOneShot(hurtClip);   }
 
     // ── Helpers de teclas reasignables ────────────────────────────────────
     private static KeyCode GetKey(string id, KeyCode def) => KeyRebindUI.GetKey(id, def);

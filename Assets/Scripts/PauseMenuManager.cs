@@ -47,6 +47,15 @@ public class PauseMenuManager : MonoBehaviour
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (_isPaused) Resume();
+
+        // Cursor: visible en menús, oculto durante gameplay (CheckForPlayer lo confirma)
+        if (scene.name == "MainMenu")
+        {
+            Cursor.visible   = true;
+            Cursor.lockState = CursorLockMode.None;
+        }
+        // Nota: la música por escena la gestiona ZoneMusicController exclusivamente
+
         StartCoroutine(CheckForPlayer());
     }
 
@@ -55,12 +64,24 @@ public class PauseMenuManager : MonoBehaviour
     {
         yield return null;
         _canPause = FindObjectOfType<PlayerController>() != null;
+
+        // Ocultar cursor durante gameplay; mostrarlo en menús
+        Cursor.visible   = !_canPause;
+        Cursor.lockState = _canPause ? CursorLockMode.Confined : CursorLockMode.None;
     }
 
     void Update()
     {
         if (!_canPause) return;
+        if (WorldMapController.Instance != null && WorldMapController.Instance.IsOpen) return;
         if (Input.GetKeyDown(KeyCode.Escape)) Toggle();
+    }
+
+    // Pausa automática al perder el foco (alt-tab / click fuera de la ventana)
+    void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus && _canPause && !_isPaused)
+            Pause();
     }
 
     // ─── Estado ───────────────────────────────────────────────────────────────
@@ -72,6 +93,8 @@ public class PauseMenuManager : MonoBehaviour
         Time.timeScale = 0f;
         overlay?.SetActive(true);
         ShowButtons();
+        Cursor.visible   = true;
+        Cursor.lockState = CursorLockMode.None;
     }
 
     public void Resume()
@@ -79,6 +102,12 @@ public class PauseMenuManager : MonoBehaviour
         _isPaused = false;
         Time.timeScale = 1f;
         overlay?.SetActive(false);
+
+        if (_canPause)
+        {
+            Cursor.visible   = false;
+            Cursor.lockState = CursorLockMode.Confined;
+        }
     }
 
     // ─── Acciones de botones (llamadas desde Button.onClick en Inspector) ──────
@@ -88,6 +117,9 @@ public class PauseMenuManager : MonoBehaviour
     {
         ReturnScene = SceneManager.GetActiveScene().name;
         Resume();
+        // Yendo a Settings: el cursor debe verse para navegar los menús
+        Cursor.visible   = true;
+        Cursor.lockState = CursorLockMode.None;
         SceneFader.Instance?.LoadScene("Settings");
     }
 
@@ -99,6 +131,8 @@ public class PauseMenuManager : MonoBehaviour
 
     public void OnConfirmarSalir()
     {
+        // Detener música ANTES del fade para que no siga sonando durante la transición
+        AudioManager.Instance?.StopMusic();
         Resume();
         SceneFader.Instance?.LoadScene("MainMenu");
     }

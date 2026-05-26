@@ -49,4 +49,13 @@ public class PlayerAnimator : MonoBehaviour
 
     public void TriggerHurt() => anim.SetTrigger(PHurt);
     public void TriggerDie()  => anim.SetTrigger(PDie);
+
+    // Fuerza el regreso al estado Idle — llamar después de secuencias de muerte/absorción
+    // para evitar que Kael quede atascado en el último frame de Die.
+    public void ResetToIdle()
+    {
+        anim.ResetTrigger(PDie);
+        anim.ResetTrigger(PHurt);
+        anim.Play("Idle", 0, 0f);
+    }
 }

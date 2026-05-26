@@ -188,6 +188,7 @@ public class SlotsScreenManager : MonoBehaviour
         else
         {
             SaveManager.Instance?.Delete(_pendingActionSlot);
+            WorldMapController.ClearAllVisited();
             _saves[_pendingActionSlot] = new SaveData();
             ApplySlotSprites(_pendingActionSlot);
             RefreshSlotUI(_pendingActionSlot);
@@ -198,6 +199,9 @@ public class SlotsScreenManager : MonoBehaviour
     // ── Partidas ─────────────────────────────────────────────────────────────
     private void StartNewGame(int slot)
     {
+        // Limpiar zonas visitadas del mapa para que la nueva partida empiece sin descubrimientos
+        WorldMapController.ClearAllVisited();
+
         var data = new SaveData { isEmpty = false, slotName = $"Partida {slot + 1}", zoneName = "Inicio" };
         SaveManager.Instance?.Save(slot, data);
         SaveManager.Instance?.SelectSlot(slot);

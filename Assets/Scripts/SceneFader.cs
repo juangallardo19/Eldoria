@@ -62,6 +62,21 @@ public class SceneFader : MonoBehaviour
         StartCoroutine(FadeAndLoad(sceneName));
     }
 
+    // Usar después de FadeOutAsync — pantalla ya en negro, no hace FadeOut de nuevo.
+    // SceneFader es DontDestroyOnLoad: la coroutine sobrevive al cambio de escena.
+    public void LoadSceneAfterFade(string sceneName)
+    {
+        StartCoroutine(LoadAfterFadeRoutine(sceneName));
+    }
+
+    private IEnumerator LoadAfterFadeRoutine(string sceneName)
+    {
+        SceneManager.LoadScene(sceneName);
+        yield return null;   // esperar un frame para que Unity procese el cambio
+        yield return StartCoroutine(FadeIn());
+        _isFading = false;
+    }
+
     private IEnumerator FadeAndLoad(string sceneName)
     {
         _isFading = true;

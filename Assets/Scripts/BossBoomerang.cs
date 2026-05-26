@@ -9,9 +9,11 @@ using UnityEngine;
 [RequireComponent(typeof(BoxCollider2D))]
 public class BossBoomerang : MonoBehaviour
 {
-    [SerializeField] private float speed      = 24f;
+    [SerializeField] private float speed      = 30f;
     [SerializeField] private float travelDist = 18f;
     [SerializeField] private int   damage     = 1;
+    [SerializeField] private float wobbleAmp  = 0.3f;   // amplitud oscilación Y (u)
+    [SerializeField] private float wobbleFreq = 5f;     // frecuencia (rad/s) ≈ 0.8 ciclos/s
 
     private Vector3 _origin;
     private bool    _hit;
@@ -48,18 +50,17 @@ public class BossBoomerang : MonoBehaviour
             sr.sprite = Sprite.Create(tex, new Rect(0, 0, 16, 8), new Vector2(0.5f, 0f), 4f);
         }
 
-        // boomarang arms pivot = bottom (y=0). Con scale=1, frame 94px / PPU=16 = 5.875u alto.
-        // Hitbox solo cubre la parte baja (donde puede golpear al jugador parado).
-        // El jugador salta ~2u para esquivarlo.
+        // Hitbox centrada en el punto de spawn (al ras del suelo).
+        // scale=2 → world: ancho=10u, alto=3u. Cubre exactamente la silueta del brazo rasante.
         var col       = GetComponent<BoxCollider2D>();
         col.isTrigger = true;
-        col.size      = new Vector2(6f, 2.5f);
-        col.offset    = new Vector2(0f, 1.25f);
+        col.size      = new Vector2(5f, 1.5f);
+        col.offset    = new Vector2(0f, 1f);   // sube la hitbox para alinear con los brazos del sprite
 
         StartCoroutine(BoomerangRoutine(direction, onReturn));
     }
 
-    // Carga los sub-sprites de boomarang arms.png directamente desde el proyecto (editor-only)
+    // Carga los sub-sprites de boomarang arms.png directamente desde el proyecto.
     private static Sprite[] LoadFrames()
     {
 #if UNITY_EDITOR
@@ -70,10 +71,18 @@ public class BossBoomerang : MonoBehaviour
             if (a is Sprite s) list.Add(s);
         list.Sort((a, b) =>
             System.StringComparer.OrdinalIgnoreCase.Compare(a.name, b.name));
-        return list.Count > 0 ? list.ToArray() : null;
+        if (list.Count > 0) return list.ToArray();
+
+        // Fallback: spritesheet importada como Single (no Multiple) — usar la textura completa
+        var tex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(PATH);
+        if (tex != null)
+            return new[] { Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f) };
 #else
-        return null;
+        // En builds: cargar desde Resources/Boss/BossBoomerang (arrastra los frames allí en el Inspector si es necesario)
+        var sprites = Resources.LoadAll<Sprite>("Boss/BossBoomerang");
+        if (sprites != null && sprites.Length > 0) return sprites;
 #endif
+        return null;
     }
 
     private IEnumerator AnimateFrames(SpriteRenderer sr, Sprite[] frames)
@@ -89,28 +98,58 @@ public class BossBoomerang : MonoBehaviour
 
     private IEnumerator BoomerangRoutine(float dir, Action onReturn)
     {
-        Vector3 target = _origin + new Vector3(dir * travelDist, 0f, 0f);
+        float targetX = _origin.x + dir * travelDist;
+        float baseY   = _origin.y;
+        float t       = 0f;
 
         // ── Ida ──────────────────────────────────────────────────────────────
-        while (Vector3.Distance(transform.position, target) > 0.25f)
+        while (Mathf.Abs(transform.position.x - targetX) > 0.25f)
         {
-            transform.position = Vector3.MoveTowards(
-                transform.position, target, speed * Time.deltaTime);
+            t += Time.deltaTime;
+            float newX = Mathf.MoveTowards(transform.position.x, targetX, speed * Time.deltaTime);
+            float newY = baseY + Mathf.Sin(t * wobbleFreq) * wobbleAmp;
+            transform.position = new Vector3(newX, newY, _origin.z);
+            ManualHitCheck();
             yield return null;
         }
 
         // ── Vuelta ───────────────────────────────────────────────────────────
         _hit = false;
 
-        while (Vector3.Distance(transform.position, _origin) > 0.25f)
+        while (Mathf.Abs(transform.position.x - _origin.x) > 0.25f)
         {
-            transform.position = Vector3.MoveTowards(
-                transform.position, _origin, speed * Time.deltaTime);
+            t += Time.deltaTime;
+            float newX = Mathf.MoveTowards(transform.position.x, _origin.x, speed * Time.deltaTime);
+            float newY = baseY + Mathf.Sin(t * wobbleFreq) * wobbleAmp;
+            transform.position = new Vector3(newX, newY, _origin.z);
+            ManualHitCheck();
             yield return null;
         }
 
         onReturn?.Invoke();
         Destroy(gameObject);
+    }
+
+    // Comprobación manual cada frame — OnTriggerEnter2D pierde colisiones a velocidades altas
+    // cuando el objeto se mueve vía transform.position (sin Rigidbody continuo).
+    private void ManualHitCheck()
+    {
+        if (_hit) return;
+        var col = GetComponent<BoxCollider2D>();
+        if (col == null) return;
+        Vector2 worldCenter = (Vector2)transform.position + col.offset;
+        Vector2 worldSize   = col.size * new Vector2(
+            Mathf.Abs(transform.lossyScale.x), Mathf.Abs(transform.lossyScale.y));
+        var hits = Physics2D.OverlapBoxAll(worldCenter, worldSize, 0f);
+        foreach (var h in hits)
+        {
+            bool isPlayer = h.CompareTag("Player") || h.GetComponent<PlayerController>() != null;
+            if (!isPlayer) continue;
+            if (CrystalRespawnManager.Instance == null) break;
+            _hit = true;
+            CrystalRespawnManager.Instance.TakeBossDamage(damage);
+            return;
+        }
     }
 
     void OnTriggerEnter2D(Collider2D other)

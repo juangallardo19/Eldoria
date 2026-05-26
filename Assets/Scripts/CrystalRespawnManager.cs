@@ -58,6 +58,13 @@ public class CrystalRespawnManager : MonoBehaviour
             _lastSafePos = _player.transform.position;
             _playerSR    = _player.GetComponent<SpriteRenderer>();
             _playerAnim  = _player.GetComponent<PlayerAnimator>();
+
+            // Garantiza que el jugador esté activo y visible al entrar en una escena
+            // (puede llegar desactivado si el cambio de escena interrumpió un respawn).
+            _player.enabled = true;
+            if (_playerSR != null) _playerSR.enabled = true;
+            var rbStart = _player.GetComponent<Rigidbody2D>();
+            if (rbStart != null) rbStart.isKinematic = false;
         }
     }
 
@@ -138,7 +145,8 @@ public class CrystalRespawnManager : MonoBehaviour
                 PlayerSpawnManager.UsePositionOverride   = true;
                 PlayerSpawnManager.OverridePositionValue = new Vector2(sx, sy);
 
-                if (SceneFader.Instance != null) SceneFader.Instance.LoadScene(sanctScene);
+                // FadeOutAsync dejó _isFading=true; usar LoadSceneAfterFade para saltarse el guard.
+                if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade(sanctScene);
                 else UnityEngine.SceneManagement.SceneManager.LoadScene(sanctScene);
             }
             else
@@ -147,14 +155,24 @@ public class CrystalRespawnManager : MonoBehaviour
                 _lives = defaultLives;
                 PersistHealth();
                 PlayerSpawnManager.NextSpawnId = "default";
-                if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("MTN01_Exterior");
+                if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade("MTN01_Exterior");
                 else UnityEngine.SceneManagement.SceneManager.LoadScene("MTN01_Exterior");
             }
             yield break;
         }
 
-        // ── Daño normal: hurt → fade → teleport → blink ───────────────────
+        // ── Daño normal: hurt → esperar animación completa → fade → teleport → blink ──
+        _player?.PlayHurtSound();
+
+        // Re-obtener _playerAnim por si acaso llegó null entre cambios de escena
+        if (_playerAnim == null && _player != null)
+            _playerAnim = _player.GetComponent<PlayerAnimator>();
+
         _playerAnim?.TriggerHurt();
+
+        // Esperar que termine la animación Hurt (7 frames @ 12fps = 0.583s)
+        // antes de hacer el fade, para que el jugador vea la animación completa.
+        yield return new WaitForSeconds(0.5833f);
 
         _player.enabled = false;
         if (rb != null) { rb.velocity = Vector2.zero; rb.isKinematic = true; }
