@@ -95,6 +95,7 @@ public class CrystalRespawnManager : MonoBehaviour
             // Garantiza que el jugador esté activo y visible al entrar en una escena
             // (puede llegar desactivado si el cambio de escena interrumpió un respawn).
             _player.enabled = true;
+            if (_playerAnim != null) _playerAnim.enabled = true;
             if (_playerSR != null) _playerSR.enabled = true;
             var rbStart = _player.GetComponent<Rigidbody2D>();
             if (rbStart != null) rbStart.isKinematic = false;
@@ -171,6 +172,9 @@ public class CrystalRespawnManager : MonoBehaviour
             // ── Muerte: animación completa antes del fade ──────────────────
             OnDamageTaken?.Invoke(0, _lives);  // HUD muestra todas las Aras muertas
             _playerAnim?.TriggerDie();
+            // Desactivar PlayerAnimator para que su Update() no sobreescriba bools
+            // en el Animator y no interrumpa la animación de muerte.
+            if (_playerAnim != null) _playerAnim.enabled = false;
 
             _player.enabled = false;
             if (rb != null) { rb.velocity = Vector2.zero; rb.isKinematic = true; }
@@ -190,6 +194,10 @@ public class CrystalRespawnManager : MonoBehaviour
             {
                 _lives = defaultLives;
                 PersistHealth();
+                // Avisar al HUD antes del cambio de escena — el canvas es DDOL
+                // y el jugador verá las Aras vivas cuando aparezca la nueva escena.
+                OnLivesRestored?.Invoke(_lives);
+                OnLivesChanged?.Invoke(_lives);
 
                 float sx = PlayerPrefs.GetFloat("SanctuaryX", 0f);
                 float sy = PlayerPrefs.GetFloat("SanctuaryY", 0f);
@@ -206,6 +214,9 @@ public class CrystalRespawnManager : MonoBehaviour
                 string fallback = FallbackScene();
                 _lives = defaultLives;
                 PersistHealth();
+                // Avisar al HUD antes del cambio de escena.
+                OnLivesRestored?.Invoke(_lives);
+                OnLivesChanged?.Invoke(_lives);
                 PlayerSpawnManager.NextSpawnId = "default";
                 if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade(fallback);
                 else UnityEngine.SceneManagement.SceneManager.LoadScene(fallback);
@@ -288,6 +299,7 @@ public class CrystalRespawnManager : MonoBehaviour
             if (_playerAnim == null && _player != null)
                 _playerAnim = _player.GetComponent<PlayerAnimator>();
             _playerAnim?.TriggerDie();
+            if (_playerAnim != null) _playerAnim.enabled = false;
 
             _player.enabled = false;
             if (rb != null) { rb.velocity = Vector2.zero; rb.isKinematic = true; }
@@ -305,6 +317,8 @@ public class CrystalRespawnManager : MonoBehaviour
             {
                 _lives = defaultLives;
                 PersistHealth();
+                OnLivesRestored?.Invoke(_lives);
+                OnLivesChanged?.Invoke(_lives);
                 float sx = PlayerPrefs.GetFloat("SanctuaryX", 0f);
                 float sy = PlayerPrefs.GetFloat("SanctuaryY", 0f);
                 PlayerSpawnManager.UsePositionOverride   = true;
@@ -317,6 +331,8 @@ public class CrystalRespawnManager : MonoBehaviour
                 string fallback = FallbackScene();
                 _lives = defaultLives;
                 PersistHealth();
+                OnLivesRestored?.Invoke(_lives);
+                OnLivesChanged?.Invoke(_lives);
                 PlayerSpawnManager.NextSpawnId = "default";
                 if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade(fallback);
                 else UnityEngine.SceneManagement.SceneManager.LoadScene(fallback);

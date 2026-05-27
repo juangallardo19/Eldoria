@@ -1577,7 +1577,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f7974d569433c444ae2892370a15c4e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHP: 10
+  maxHP: 650
   moveSpeed: 4
   detectRange: 25
   arenaMinX: -35

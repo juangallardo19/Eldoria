@@ -17,7 +17,7 @@ public class NPCInteract : MonoBehaviour
 
         var go = new GameObject("Prompt");
         go.transform.SetParent(transform, false);
-        go.transform.localPosition = new Vector3(0f, 2.8f, 0f);
+        go.transform.localPosition = new Vector3(0f, 1.5f, 0f);
 
         var tmp       = go.AddComponent<TextMeshPro>();
         tmp.text      = "[E] Hablar";

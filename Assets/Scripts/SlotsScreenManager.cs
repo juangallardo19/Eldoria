@@ -226,18 +226,8 @@ public class SlotsScreenManager : MonoBehaviour
         SaveManager.Instance?.SelectSlot(slot);
         CrystalRespawnManager.InvalidatePersistedLives();
 
-        // Si el jugador descansó en un santuario, volver ahí al cargar la partida
-        if (data != null && !string.IsNullOrEmpty(data.sanctuaryScene))
-        {
-            PlayerSpawnManager.UsePositionOverride   = true;
-            PlayerSpawnManager.OverridePositionValue = new Vector2(data.sanctuaryX, data.sanctuaryY);
-            PlayerSpawnManager.NextSpawnId           = "default";
-
-            if (SceneFader.Instance != null) SceneFader.Instance.LoadScene(data.sanctuaryScene);
-            else SceneManager.LoadScene(data.sanctuaryScene);
-            return;
-        }
-
+        // sanctuaryScene se usa solo para el respawn tras muerte (CrystalRespawnManager),
+        // no para determinar dónde cargar la partida — eso lo decide sceneName.
         PlayerSpawnManager.NextSpawnId = "default";
 
         string scene = (data != null && !string.IsNullOrEmpty(data.sceneName))

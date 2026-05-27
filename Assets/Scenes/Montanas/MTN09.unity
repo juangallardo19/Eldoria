@@ -244,6 +244,7 @@ MonoBehaviour:
   defaultLives: 5
   blinkDuration: 2
   blinkInterval: 0.1
+  deathAnimDuration: 1.92
 --- !u!4 &124047919
 Transform:
   m_ObjectHideFlags: 0
@@ -5170,6 +5171,8 @@ MonoBehaviour:
   flickerAmplitude: 0.28
   baseAlpha: 0.55
   interactRadius: 20
+  restPrompt: Descansar [E]
+  restingMessage: Descansando...
 --- !u!4 &438474146
 Transform:
   m_ObjectHideFlags: 0
@@ -6595,8 +6598,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Descansar
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 1013952018}
+  m_fontAsset: {fileID: 11400000, guid: 8ec795b1cee7f7840b38e96dfda2ed07, type: 2}
+  m_sharedMaterial: {fileID: -5865827288214355325, guid: 8ec795b1cee7f7840b38e96dfda2ed07, type: 2}
   m_fontSharedMaterials:
   - {fileID: 1013952018}
   m_fontMaterial: {fileID: 1013952018}
@@ -6687,7 +6690,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 1013952018}
+  - {fileID: -5865827288214355325, guid: 8ec795b1cee7f7840b38e96dfda2ed07, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

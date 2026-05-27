@@ -371,6 +371,13 @@ public class WorldMapController : MonoBehaviour
                 txt.fontStyle = TMPro.FontStyles.Bold;
                 txt.color     = Color.yellow;
                 txt.alignment = TMPro.TextAlignmentOptions.Center;
+#if UNITY_EDITOR
+                var tutFont = UnityEditor.AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>(
+                    "Assets/UI/Fonts/Perfect DOS VGA 437 Win SDF.asset");
+#else
+                var tutFont = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Perfect DOS VGA 437 Win SDF");
+#endif
+                if (tutFont != null) txt.font = tutFont;
                 existing = go.transform;
             }
             existing.gameObject.SetActive(true);

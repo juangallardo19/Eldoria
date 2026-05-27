@@ -41,6 +41,13 @@ public class DashTutorialPrompt : MonoBehaviour
         tmp.fontSize  = 20;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color     = new Color(1f, 0.9f, 0.35f);
+#if UNITY_EDITOR
+        var f = UnityEditor.AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
+            "Assets/UI/Fonts/Perfect DOS VGA 437 Win SDF.asset");
+#else
+        var f = Resources.Load<TMP_FontAsset>("Fonts/Perfect DOS VGA 437 Win SDF");
+#endif
+        if (f != null) tmp.font = f;
         var rt = textGO.GetComponent<RectTransform>();
         rt.anchorMin        = new Vector2(0.5f, 0f);
         rt.anchorMax        = new Vector2(0.5f, 0f);
