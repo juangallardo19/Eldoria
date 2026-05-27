@@ -216,6 +216,9 @@ public class SlotsScreenManager : MonoBehaviour
         // from the previous session doesn't carry over to the new game.
         GameSaveController.Instance?.ResetForNewGame();
 
+        // Reset tutorial state so state from a previous slot doesn't bleed in.
+        TutorialManager.ResetState();
+
         if (SceneFader.Instance != null) SceneFader.Instance.LoadScene(EldoriaSceneNames.Intro);
         else SceneManager.LoadScene(EldoriaSceneNames.Intro);
     }
@@ -225,6 +228,10 @@ public class SlotsScreenManager : MonoBehaviour
         var data = SaveManager.Instance != null ? SaveManager.Instance.Load(slot) : null;
         SaveManager.Instance?.SelectSlot(slot);
         CrystalRespawnManager.InvalidatePersistedLives();
+
+        // Restore tutorial phase from save data so the correct step resumes
+        // when the game scene loads (prevents cross-slot state contamination).
+        TutorialManager.RestoreFromSave(data);
 
         // sanctuaryScene is used only for death respawn (CrystalRespawnManager),
         // not to determine where to load the save — that is decided by sceneName.

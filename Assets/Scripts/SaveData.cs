@@ -16,4 +16,5 @@ public class SaveData
     public float  sanctuaryX      = 0f;
     public float  sanctuaryY      = 0f;
     public bool   tutorialDone    = false;     // HV01_Interior tutorial completed
+    public int    tutorialPhase   = 0;         // TutorialManager.Phase cast to int; 0 = Inactive
 }

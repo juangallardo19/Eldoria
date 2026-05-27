@@ -90,6 +90,17 @@ public class TutorialManager : MonoBehaviour
         _dlgDone         = false;
         _sanctuaryRested = false;
 
+        // When returning to menu screens, clear all tutorial UI so it doesn't
+        // bleed into a different save slot that the player might select next.
+        if (scene.name == EldoriaSceneNames.MainMenu ||
+            scene.name == EldoriaSceneNames.SlotsScreen)
+        {
+            TutorialHint.Hide();
+            ObjectiveArrow.Hide();
+            WorldMapController.Instance?.ClearTutorialObjective();
+            return;
+        }
+
         if (_phase == Phase.Done || IsTutorialDone())
         {
             _phase = Phase.Done;
@@ -102,6 +113,8 @@ public class TutorialManager : MonoBehaviour
             case EldoriaSceneNames.HV01_Interior:
                 if (_phase == Phase.Inactive || _phase == Phase.IntroDlg)
                     StartCoroutine(BeginInteriorTutorial());
+                else if (_phase == Phase.ShowDoorArrow)
+                    ObjectiveArrow.Show(DoorWorldPos);
                 break;
 
             case EldoriaSceneNames.HV01_Exterior:
@@ -113,7 +126,9 @@ public class TutorialManager : MonoBehaviour
                 break;
 
             case EldoriaSceneNames.HV05:
-                if (_phase == Phase.LiaraApproach || _phase == Phase.LiaraDialogue)
+                // Also trigger if the map coroutine was killed mid-wait (RunHint/MapHint)
+                if (_phase == Phase.LiaraApproach || _phase == Phase.LiaraDialogue ||
+                    _phase == Phase.RunHint        || _phase == Phase.MapHint)
                     StartCoroutine(BeginLiaraTutorial());
                 break;
 
@@ -123,8 +138,9 @@ public class TutorialManager : MonoBehaviour
                 break;
         }
 
-        // Persistent hint while navigating toward Liara
-        if (_phase == Phase.LiaraApproach && scene.name != EldoriaSceneNames.HV05)
+        // Persistent hint while navigating toward Liara (includes interrupted map phases)
+        if ((_phase == Phase.LiaraApproach || _phase == Phase.RunHint || _phase == Phase.MapHint)
+            && scene.name != EldoriaSceneNames.HV05)
         {
             ObjectiveArrow.Hide();
             TutorialHint.Show("Ve al Mirador de Liara — Zona B  [ M ] para el mapa");
@@ -194,6 +210,7 @@ public class TutorialManager : MonoBehaviour
 
         PlayerHUD.Instance?.SetVisible(true);
         _phase = Phase.ShowDoorArrow;
+        PersistPhase();
         ObjectiveArrow.Show(DoorWorldPos);
     }
 
@@ -284,6 +301,7 @@ public class TutorialManager : MonoBehaviour
 
         // LiaraApproach: arrow toward the interior (KaelHouse door, route to the hub)
         _phase = Phase.LiaraApproach;
+        PersistPhase();
         TutorialHint.Show("Ve al Mirador de Liara — Zona B  [ M ] para el mapa");
         ObjectiveArrow.Show(new Vector3(78f, -30f, 0f)); // right exit → HV02 → Liara
     }
@@ -297,12 +315,11 @@ public class TutorialManager : MonoBehaviour
         TutorialHint.Hide();
         WorldMapController.Instance?.ClearTutorialObjective();
 
-        // Resume if the player left and returned already in LiaraDialogue phase
-        if (_phase == Phase.LiaraDialogue)
-        {
-            SetupLiaraNPC();
-            yield break;
-        }
+        // Normalize phase — could arrive as RunHint/MapHint if the map coroutine
+        // was killed mid-wait by StopAllCoroutines on scene change.
+        if (_phase != Phase.LiaraDialogue)
+            _phase = Phase.LiaraApproach;
+        PersistPhase();
 
         SetupLiaraNPC();
     }
@@ -460,6 +477,7 @@ public class TutorialManager : MonoBehaviour
     IEnumerator StartAraLeads()
     {
         _phase = Phase.AraLeads;
+        PersistPhase();
         if (DialogueManager.Instance != null)
             yield return StartCoroutine(ShowDialogue(BuildAraLeadsDialogue()));
         TutorialHint.Show("Sigue a Ara  →  Ve hacia el oeste");
@@ -627,7 +645,7 @@ public class TutorialManager : MonoBehaviour
             case Phase.GateJump:   _phase = Phase.GateAttack;     break;
             case Phase.GateAttack: _phase = Phase.GateCombo;      break;
             case Phase.GateCombo:  _phase = Phase.ShowDoorArrow;  break;
-            case Phase.GateDrop:   _phase = Phase.DurganApproach; break;
+            case Phase.GateDrop:   _phase = Phase.DurganApproach; PersistPhase(); break;
         }
     }
 
@@ -698,5 +716,57 @@ public class TutorialManager : MonoBehaviour
         var f = Resources.Load<TMP_FontAsset>("Fonts/Perfect DOS VGA 437 Win SDF");
 #endif
         if (f != null) t.font = f;
+    }
+
+    // ── Phase persistence ─────────────────────────────────────────────────────
+
+    // Writes the current phase to the active save slot so Continue works correctly.
+    void PersistPhase()
+    {
+        if (SaveManager.Instance == null || SaveManager.ActiveSlot < 0) return;
+        var data = SaveManager.Instance.Load(SaveManager.ActiveSlot);
+        if (data == null || data.isEmpty) return;
+        data.tutorialPhase = (int)_phase;
+        SaveManager.Instance.Save(SaveManager.ActiveSlot, data);
+    }
+
+    // Called by SlotsScreenManager when starting a new game.
+    public static void ResetState()
+    {
+        if (Instance == null) return;
+        Instance._phase = Phase.Inactive;
+        TutorialHint.Hide();
+        ObjectiveArrow.Hide();
+        WorldMapController.Instance?.ClearTutorialObjective();
+    }
+
+    // Called by SlotsScreenManager when continuing an existing save.
+    // Restores _phase so OnSceneLoaded can resume the correct tutorial step.
+    public static void RestoreFromSave(SaveData data)
+    {
+        if (Instance == null || data == null) return;
+        TutorialHint.Hide();
+        ObjectiveArrow.Hide();
+        WorldMapController.Instance?.ClearTutorialObjective();
+        Instance._phase = NormalizeSavedPhase((Phase)data.tutorialPhase);
+    }
+
+    // Maps saved phase values to the nearest safe resumption point.
+    // Active transient phases (gates, dialogues) restart from the previous milestone.
+    static Phase NormalizeSavedPhase(Phase saved)
+    {
+        switch (saved)
+        {
+            case Phase.Done:           return Phase.Done;
+            case Phase.AraLeads:       return Phase.AraLeads;
+            case Phase.LiaraDialogue:
+            case Phase.LiaraApproach:
+            case Phase.MapHint:
+            case Phase.RunHint:        return Phase.LiaraApproach;
+            case Phase.DurganDialogue:
+            case Phase.DurganApproach: return Phase.DurganApproach;
+            case Phase.ShowDoorArrow:  return Phase.ShowDoorArrow;
+            default:                   return Phase.Inactive;
+        }
     }
 }
