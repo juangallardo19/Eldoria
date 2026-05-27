@@ -26,7 +26,7 @@ public class PlayerController : MonoBehaviour
     [Header("Dash")]
     [SerializeField] private float dashForce    = 45f;
     [SerializeField] private float dashDuration = 0.22f;
-    [SerializeField] private float dashCooldown = 0.5f;
+    [SerializeField] private float dashCooldown = 0.2f;
 
     [Header("Wall Slide / Jump")]
     [SerializeField] private float wallSlideSpeed  = 1.5f;
@@ -128,6 +128,17 @@ public class PlayerController : MonoBehaviour
         if (runClip    == null) runClip    = Resources.Load<AudioClip>("Audio/Player/run");
         if (attackClip == null) attackClip = Resources.Load<AudioClip>("Audio/Player/attack");
         if (hurtClip   == null) hurtClip   = Resources.Load<AudioClip>("Audio/Player/hurt");
+    }
+
+    void Start()
+    {
+        // Restaurar dash si el boss ya fue derrotado en esta partida
+        if (SaveManager.ActiveSlot >= 0 && SaveManager.Instance != null)
+        {
+            var saved = SaveManager.Instance.Load(SaveManager.ActiveSlot);
+            if (saved != null && (saved.bossDefeated || saved.hasDash))
+                hasDash = true;
+        }
     }
 
     void Update()

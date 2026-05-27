@@ -17,6 +17,7 @@ public class SceneBoundary : MonoBehaviour
         if (string.IsNullOrEmpty(targetScene)) return;
         if (!other.CompareTag("Player")) return;
         if (SceneFader.Instance != null && SceneFader.Instance.IsFading) return;
+        if (BossObsesion.IsArenaActive) return;
 
         PlayerSpawnManager.NextSpawnId = spawnId;
 
@@ -25,6 +26,9 @@ public class SceneBoundary : MonoBehaviour
         else
             SceneManager.LoadScene(targetScene);
     }
+
+    // OnTriggerStay cubre el caso en que el jugador ya estaba dentro del trigger al activarse
+    void OnTriggerStay2D(Collider2D other) => OnTriggerEnter2D(other);
 
 #if UNITY_EDITOR
     void OnDrawGizmos()

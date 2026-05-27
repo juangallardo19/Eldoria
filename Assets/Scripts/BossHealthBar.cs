@@ -31,16 +31,18 @@ public class BossHealthBar : MonoBehaviour
     void Awake()
     {
         BuildUI();   // _canvasGroup se inicializa dentro de BuildUI
-        BossObsesion.OnHealthChanged += HandleHealthChanged;
-        BossObsesion.OnPhaseChanged  += HandlePhaseChanged;
-        BossObsesion.OnBossDead      += HandleBossDead;
+        BossObsesion.OnHealthChanged  += HandleHealthChanged;
+        BossObsesion.OnPhaseChanged   += HandlePhaseChanged;
+        BossObsesion.OnBossDefeated   += HandleBossDefeated;
+        BossObsesion.OnBossDead       += HandleBossDead;
     }
 
     void OnDestroy()
     {
-        BossObsesion.OnHealthChanged -= HandleHealthChanged;
-        BossObsesion.OnPhaseChanged  -= HandlePhaseChanged;
-        BossObsesion.OnBossDead      -= HandleBossDead;
+        BossObsesion.OnHealthChanged  -= HandleHealthChanged;
+        BossObsesion.OnPhaseChanged   -= HandlePhaseChanged;
+        BossObsesion.OnBossDefeated   -= HandleBossDefeated;
+        BossObsesion.OnBossDead       -= HandleBossDead;
     }
 
     // ── Eventos ──────────────────────────────────────────────────────────────
@@ -81,7 +83,8 @@ public class BossHealthBar : MonoBehaviour
         }
     }
 
-    private void HandleBossDead() => StartCoroutine(FadeOut());
+    private void HandleBossDefeated() => StartCoroutine(FadeOut(0f));  // desaparece al instante
+    private void HandleBossDead()     => StartCoroutine(FadeOut(0f));  // por si acaso (seguridad)
 
     // ── Construcción de UI ────────────────────────────────────────────────────
 
@@ -112,49 +115,20 @@ public class BossHealthBar : MonoBehaviour
         scaler.matchWidthOrHeight  = 0.5f;
         canvasGO.AddComponent<GraphicRaycaster>();
 
-        // Sprites 2172×724px → aspect ratio 3:1 exacto
-        // A 690px de ancho → alto = 690 / (2172/724) = 230px
-        const float BAR_W  = 690f;
-        const float BAR_H  = 230f;
-        const float NAME_H = 56f;
-        const float GAP    = 2f;
+        const float BAR_W  = 800f;
+        const float BAR_H  = 260f;
 
-        // ── Contenedor padre: posiciona todo el HUD a 10px del borde superior ─
+        // ── HUDGroup: borde inferior, ancho completo ─────────────────────────
         var hudGO = new GameObject("HUDGroup");
         hudGO.transform.SetParent(canvasGO.transform, false);
         var hudRt = hudGO.AddComponent<RectTransform>();
-        hudRt.anchorMin        = new Vector2(0.5f, 1f);
-        hudRt.anchorMax        = new Vector2(0.5f, 1f);
+        hudRt.anchorMin        = new Vector2(0f, 0f);   // stretch X, anclado al fondo
+        hudRt.anchorMax        = new Vector2(1f, 0f);
         hudRt.pivot            = new Vector2(0.5f, 1f);
-        hudRt.anchoredPosition = new Vector2(0f, -10f);
-        hudRt.sizeDelta        = new Vector2(BAR_W, NAME_H + GAP + BAR_H);
+        hudRt.anchoredPosition = new Vector2(0f, 210f); // borde superior a 210px del fondo
+        hudRt.sizeDelta        = new Vector2(0f, 288f); // ancho completo (Left=0, Right=0)
 
-        // ── Nombre del boss — arriba del todo dentro del HUDGroup ────────────
-        var nameGO = new GameObject("BossName");
-        nameGO.transform.SetParent(hudGO.transform, false);
-        _nameText = nameGO.AddComponent<TextMeshProUGUI>();
-        _nameText.text      = "LA OBSESIÓN";
-        _nameText.fontSize  = 48;
-        _nameText.fontStyle = FontStyles.Bold;
-        _nameText.alignment = TextAlignmentOptions.Center;
-        if (bossNameFont != null) _nameText.font = bossNameFont;
-
-        // Gradiente dorado arriba → ámbar oscuro abajo
-        _nameText.enableVertexGradient = true;
-        _nameText.colorGradient = new VertexGradient(
-            new Color(1f, 0.97f, 0.65f),
-            new Color(1f, 0.97f, 0.65f),
-            new Color(1f, 0.42f, 0.08f),
-            new Color(1f, 0.42f, 0.08f)
-        );
-        var nrt = nameGO.GetComponent<RectTransform>();
-        nrt.anchorMin        = new Vector2(0.5f, 1f);
-        nrt.anchorMax        = new Vector2(0.5f, 1f);
-        nrt.pivot            = new Vector2(0.5f, 1f);
-        nrt.anchoredPosition = new Vector2(0f, 0f);
-        nrt.sizeDelta        = new Vector2(BAR_W, NAME_H);
-
-        // ── Contenedor de la barra — justo debajo del título ─────────────────
+        // ── BarContainer: top-center del HUDGroup, 800×260 ───────────────────
         var barGO = new GameObject("BarContainer");
         barGO.transform.SetParent(hudGO.transform, false);
         barGO.AddComponent<RectTransform>();
@@ -162,7 +136,7 @@ public class BossHealthBar : MonoBehaviour
         brt.anchorMin        = new Vector2(0.5f, 1f);
         brt.anchorMax        = new Vector2(0.5f, 1f);
         brt.pivot            = new Vector2(0.5f, 1f);
-        brt.anchoredPosition = new Vector2(0f, -(NAME_H + GAP));
+        brt.anchoredPosition = new Vector2(0f, 0f);
         brt.sizeDelta        = new Vector2(BAR_W, BAR_H);
 
         // Capa 1: barra vacía — 0%.png, siempre visible
@@ -229,16 +203,18 @@ public class BossHealthBar : MonoBehaviour
         _hpFill.color = prev;
     }
 
-    private IEnumerator FadeOut()
+    private IEnumerator FadeOut(float delay = 0f)
     {
-        yield return new WaitForSeconds(2f);
+        if (_canvasGroup == null) yield break;
+        if (_canvasGroup.alpha <= 0f) yield break;  // ya invisible, no hacer nada
+        yield return new WaitForSeconds(delay);
         float t = 0f;
         while (t < 1f)
         {
-            t += Time.deltaTime * 0.5f;
-            if (_canvasGroup != null) _canvasGroup.alpha = 1f - t;
+            t += Time.deltaTime * 2f;   // 0.5s de fade
+            _canvasGroup.alpha = 1f - t;
             yield return null;
         }
-        if (_canvasGroup != null) _canvasGroup.alpha = 0f;
+        _canvasGroup.alpha = 0f;
     }
 }

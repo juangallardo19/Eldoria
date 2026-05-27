@@ -7935,7 +7935,7 @@ MonoBehaviour:
   flickerSpeed: 3.5
   flickerAmplitude: 0.28
   baseAlpha: 0.55
-  interactRadius: 6
+  interactRadius: 20
 --- !u!4 &1683054099
 Transform:
   m_ObjectHideFlags: 0

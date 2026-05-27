@@ -157,11 +157,11 @@ public static class SetupMTN10
             size:   new Vector2(1f, boundH),
             target: "PreMTN10", spawnId: "mtn10_exit");
 
-        // Izquierda → MTN11 (placeholder boss)
+        // Izquierda → PreMTN11 (pasillo Dash)
         MakeBoundary("SceneBoundary_Left",
             pos:    new Vector3(X_LEFT + 1f, midY, 0f),
             size:   new Vector2(1f, boundH),
-            target: "MTN11", spawnId: "mtn10_left");
+            target: "PreMTN11", spawnId: "mtn10_left");
 
         // ── Guardar ───────────────────────────────────────────────────────
         EditorSceneManager.MarkSceneDirty(scene);

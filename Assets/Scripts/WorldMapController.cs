@@ -55,6 +55,7 @@ public class WorldMapController : MonoBehaviour
         { "MTN09",            "MTN09" },
         { "PreMTN10",         "MTN10" },
         { "MTN10",            "MTN10" },
+        { "PreMTN11",         "MTN11" },
         { "MTN11",            "MTN11" },
         { "MTN12",            "MTN12" },
     };
@@ -338,6 +339,10 @@ public class WorldMapController : MonoBehaviour
             "MTN07","MTN08","MTN09","MTN10","MTN11","MTN12"
         })
             PlayerPrefs.DeleteKey("MapVisited_" + id);
+
+        // Pre-discovered zones must always be visible; Awake() won't re-run for
+        // the DDOL singleton, so we re-mark them here after every clear.
+        foreach (var z in PreDiscoveredZones) MarkVisited(z);
         PlayerPrefs.Save();
     }
 }

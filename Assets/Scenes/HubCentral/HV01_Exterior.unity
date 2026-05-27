@@ -1253,9 +1253,9 @@ MonoBehaviour:
   fallMultiplier: 4
   lowJumpMult: 3
   fastFallAccel: 50
-  dashForce: 22
-  dashDuration: 0.14
-  dashCooldown: 0.5
+  dashForce: 45
+  dashDuration: 0.22
+  dashCooldown: 0.2
   wallSlideSpeed: 1.5
   wallJumpForce: {x: 9, y: 16}
   attackWalkMult: 0.45

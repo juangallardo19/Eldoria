@@ -40,8 +40,11 @@ public class GameSaveController : MonoBehaviour
         { "MTN06",             "Laboratorio en Ruinas" },
         { "MTN08",             "Cruce de Vetas" },
         { "MTN09",             "Antesala del Boss" },
-        { "PreMTN10",          "Pasillo del Boss" },
-        { "MTN10",             "Sala de la Obsesión" },
+        { "PreMTN10",          "Pasillo del Boss"     },
+        { "MTN10",             "Sala de la Obsesión"  },
+        { "PreMTN11",          "Pasillo de las Sombras" },
+        { "MTN11",             "Caverna Profunda"     },
+        { "MTN12",             "Cueva Final"          },
     };
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -106,4 +109,14 @@ public class GameSaveController : MonoBehaviour
 
     // ── API pública ───────────────────────────────────────────────────────────
     public void SaveNow(string zoneName = null) => Flush(zoneName);
+
+    // Llamado desde StartNewGame para que los contadores de la partida anterior
+    // no contaminen el tiempo de juego ni el estado de la nueva partida.
+    public void ResetForNewGame()
+    {
+        _sessionTime    = 0f;
+        _autosaveTimer  = 0f;
+        _savedBaseTime  = 0f;
+        _baseTimeLoaded = false;
+    }
 }

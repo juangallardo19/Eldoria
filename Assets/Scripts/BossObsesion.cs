@@ -77,7 +77,11 @@ public class BossObsesion : MonoBehaviour, IDamageable
 
     public static event System.Action<int, int>  OnHealthChanged;
     public static event System.Action<BossPhase> OnPhaseChanged;
-    public static event System.Action            OnBossDead;
+    public static event System.Action            OnBossDefeated;  // boss HP=0, antes de extracción
+    public static event System.Action            OnBossDead;      // extracción completa
+
+    // Bloquea SceneBoundary durante la pelea — evita que el jugador escape sin deshabilitar triggers
+    public static bool IsArenaActive = false;
 
     public BossPhase Phase   => _phase;
     public float     HPRatio => (float)_hp / maxHP;
@@ -124,6 +128,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         _hp    = maxHP;
         _phase = BossPhase.Dormant;
         _anim.PlaySleep();
+        // No invocamos OnHealthChanged aquí: la barra solo aparece al entrar en Phase1
 
         // Pre-cargar frames del boomerang en editor Play Mode si no fueron asignados
         // en el Inspector (evita el recuadro naranja de fallback sin necesitar el editor script).
@@ -215,11 +220,10 @@ public class BossObsesion : MonoBehaviour, IDamageable
 
     private IEnumerator WakeUpSequence()
     {
-        // Habilitar barreras físicas de arena y bloquear triggers de salida
+        // Habilitar barreras físicas de arena y bloquear transiciones de escena
         foreach (var ab in FindObjectsOfType<ArenaBarrier>(true))
             ab.gameObject.SetActive(true);
-        foreach (var sb in FindObjectsOfType<SceneBoundary>())
-            if (sb.TryGetComponent<Collider2D>(out var col)) col.enabled = false;
+        IsArenaActive = true;
 
         // Música del boss arranca inmediatamente
         if (bossMusic != null && AudioManager.Instance != null)
@@ -228,7 +232,14 @@ public class BossObsesion : MonoBehaviour, IDamageable
         // Redirigir cámara al boss para que el jugador lo vea despertarse
         var camFollow      = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
         Transform origTarget = camFollow != null ? camFollow.target : null;
-        if (camFollow != null) camFollow.target = transform;
+        if (camFollow != null)
+        {
+            camFollow.target = transform;
+            // Snap inmediato — la cámara enfoca al boss sin esperar el SmoothDamp
+            if (Camera.main != null)
+                Camera.main.transform.position = new Vector3(
+                    transform.position.x, transform.position.y, Camera.main.transform.position.z);
+        }
 
         // Temblor mientras la cámara viaja al boss y el boss permanece quieto
         StartCoroutine(ShakeCamera(wakeStillDuration, 0.12f));
@@ -567,6 +578,8 @@ public class BossObsesion : MonoBehaviour, IDamageable
         _rb.velocity    = Vector2.zero;
         _rb.isKinematic = true;
 
+        OnBossDefeated?.Invoke();   // health bar desaparece inmediatamente
+
         // Cámara enfoca al boss en cuanto cae
         var camFollow       = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
         Transform origCamTarget = camFollow != null ? camFollow.target : null;
@@ -646,6 +659,9 @@ public class BossObsesion : MonoBehaviour, IDamageable
         if (pc != null) { pc.hasDash = true; pc.enabled = true; }
         if (kaelRb != null) { kaelRb.isKinematic = false; kaelRb.velocity = Vector2.zero; }
 
+        // Restaurar vidas completas tras derrotar al boss
+        CrystalRespawnManager.Instance?.RestoreLives();
+
         // Volver a Idle para que Kael no aparezca atascado en el último frame de muerte
         kaelAnim?.ResetToIdle();
 
@@ -655,8 +671,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         // Desbloquear salidas de arena
         foreach (var ab in FindObjectsOfType<ArenaBarrier>(true))
             ab.gameObject.SetActive(false);
-        foreach (var sb in FindObjectsOfType<SceneBoundary>())
-            if (sb.TryGetComponent<Collider2D>(out var col)) col.enabled = true;
+        IsArenaActive = false;
 
         // Tutorial de dash arranca antes del fade-in
         if (SceneFader.Instance != null) SceneFader.Instance.StartDashTutorial();
@@ -669,7 +684,12 @@ public class BossObsesion : MonoBehaviour, IDamageable
         if (SaveManager.ActiveSlot >= 0 && SaveManager.Instance != null)
         {
             var data = SaveManager.Instance.Load(SaveManager.ActiveSlot);
-            if (data != null) { data.bossDefeated = true; SaveManager.Instance.Save(SaveManager.ActiveSlot, data); }
+            if (data != null)
+            {
+                data.bossDefeated = true;
+                data.hasDash      = true;
+                SaveManager.Instance.Save(SaveManager.ActiveSlot, data);
+            }
         }
 
         _phase = BossPhase.Dead;
@@ -686,21 +706,44 @@ public class BossObsesion : MonoBehaviour, IDamageable
         var scaler = canvasGO.AddComponent<UnityEngine.UI.CanvasScaler>();
         scaler.uiScaleMode         = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        scaler.matchWidthOrHeight  = 0.5f;
+        canvasGO.AddComponent<UnityEngine.UI.GraphicRaycaster>();
 
+        // Caja negra semitransparente en la parte inferior
+        var boxGO  = new GameObject("PromptBox");
+        boxGO.transform.SetParent(canvasGO.transform, false);
+        var boxImg = boxGO.AddComponent<UnityEngine.UI.Image>();
+        boxImg.color = new Color(0f, 0f, 0f, 0.78f);
+        var boxRt = boxGO.GetComponent<UnityEngine.UI.Image>().rectTransform;
+        boxRt.anchorMin        = new Vector2(0.5f, 0f);
+        boxRt.anchorMax        = new Vector2(0.5f, 0f);
+        boxRt.pivot            = new Vector2(0.5f, 0f);
+        boxRt.anchoredPosition = new Vector2(0f, 60f);
+        boxRt.sizeDelta        = new Vector2(780f, 110f);
+
+        // Texto encima de la caja
         var textGO = new GameObject("PromptText");
-        textGO.transform.SetParent(canvasGO.transform, false);
+        textGO.transform.SetParent(boxGO.transform, false);
         var tmp = textGO.AddComponent<TMPro.TextMeshProUGUI>();
         tmp.text      = "[ E ] Mantener para extraer fragmento";
-        tmp.fontSize  = 24;
+        tmp.fontSize  = 42;
+        tmp.fontStyle = TMPro.FontStyles.Bold;
         tmp.alignment = TMPro.TextAlignmentOptions.Center;
-        tmp.color     = new Color(1f, 0.88f, 0.4f);
+        tmp.color     = Color.white;
 
-        var rt = textGO.GetComponent<RectTransform>();
-        rt.anchorMin        = new Vector2(0.5f, 0f);
-        rt.anchorMax        = new Vector2(0.5f, 0f);
-        rt.pivot            = new Vector2(0.5f, 0f);
-        rt.anchoredPosition = new Vector2(0f, 120f);
-        rt.sizeDelta        = new Vector2(600f, 50f);
+#if UNITY_EDITOR
+        var font = UnityEditor.AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>(
+            "Assets/UI/Fonts/Perfect DOS VGA 437 Win SDF.asset");
+#else
+        var font = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Perfect DOS VGA 437 Win SDF");
+#endif
+        if (font != null) tmp.font = font;
+
+        var textRt = textGO.GetComponent<RectTransform>();
+        textRt.anchorMin = Vector2.zero;
+        textRt.anchorMax = Vector2.one;
+        textRt.offsetMin = new Vector2(16f, 8f);
+        textRt.offsetMax = new Vector2(-16f, -8f);
 
         return canvasGO;
     }

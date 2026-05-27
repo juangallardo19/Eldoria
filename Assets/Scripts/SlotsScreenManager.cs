@@ -188,7 +188,10 @@ public class SlotsScreenManager : MonoBehaviour
         else
         {
             SaveManager.Instance?.Delete(_pendingActionSlot);
-            WorldMapController.ClearAllVisited();
+            // Only clear global map data when deleting the currently active slot;
+            // wiping it for a different slot would erase the active session's discoveries.
+            if (SaveManager.ActiveSlot == _pendingActionSlot)
+                WorldMapController.ClearAllVisited();
             _saves[_pendingActionSlot] = new SaveData();
             ApplySlotSprites(_pendingActionSlot);
             RefreshSlotUI(_pendingActionSlot);
@@ -202,9 +205,16 @@ public class SlotsScreenManager : MonoBehaviour
         // Limpiar zonas visitadas del mapa para que la nueva partida empiece sin descubrimientos
         WorldMapController.ClearAllVisited();
 
-        var data = new SaveData { isEmpty = false, slotName = $"Partida {slot + 1}", zoneName = "Inicio" };
+        // health=5 explícito — evita heredar vidas de la partida anterior si el DDOL
+        // GameSaveController hace Flush antes de que CrystalRespawnManager lea el save.
+        var data = new SaveData { isEmpty = false, slotName = $"Partida {slot + 1}", zoneName = "Inicio", health = 5 };
         SaveManager.Instance?.Save(slot, data);
         SaveManager.Instance?.SelectSlot(slot);
+
+        // Resetear contadores de sesión del DDOL GameSaveController para que el tiempo
+        // acumulado de la partida anterior no se sume al nuevo juego.
+        GameSaveController.Instance?.ResetForNewGame();
+
         if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("Intro");
         else SceneManager.LoadScene("Intro");
     }
@@ -214,8 +224,18 @@ public class SlotsScreenManager : MonoBehaviour
         var data = SaveManager.Instance != null ? SaveManager.Instance.Load(slot) : null;
         SaveManager.Instance?.SelectSlot(slot);
 
-        // Spawn en el punto "default" de la escena guardada (Patrón: Command — encapsula la
-        // intención de spawn antes de la carga para que PlayerSpawnManager la ejecute).
+        // Si el jugador descansó en un santuario, volver ahí al cargar la partida
+        if (data != null && !string.IsNullOrEmpty(data.sanctuaryScene))
+        {
+            PlayerSpawnManager.UsePositionOverride   = true;
+            PlayerSpawnManager.OverridePositionValue = new Vector2(data.sanctuaryX, data.sanctuaryY);
+            PlayerSpawnManager.NextSpawnId           = "default";
+
+            if (SceneFader.Instance != null) SceneFader.Instance.LoadScene(data.sanctuaryScene);
+            else SceneManager.LoadScene(data.sanctuaryScene);
+            return;
+        }
+
         PlayerSpawnManager.NextSpawnId = "default";
 
         string scene = (data != null && !string.IsNullOrEmpty(data.sceneName))

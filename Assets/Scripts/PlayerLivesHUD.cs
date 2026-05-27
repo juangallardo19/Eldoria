@@ -18,10 +18,8 @@ public class PlayerLivesHUD : MonoBehaviour
 
     void Awake()
     {
-        if (_instance != null && _instance != this) { Destroy(gameObject); return; }
-        _instance = this;
-        DontDestroyOnLoad(gameObject);
-        BuildUI();
+        // Reemplazado por PlayerHUD.cs — este script ya no es necesario
+        Destroy(gameObject);
     }
 
     void Update()

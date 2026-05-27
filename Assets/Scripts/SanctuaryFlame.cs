@@ -19,7 +19,7 @@ public class SanctuaryFlame : MonoBehaviour
     [SerializeField] private float baseAlpha        = 0.55f;
 
     [Header("Proximidad")]
-    [SerializeField] private float interactRadius = 6f;
+    [SerializeField] private float interactRadius = 10f;
 
     [Header("Descanso")]
     [SerializeField] private string restPrompt    = "Descansar [E]";
@@ -35,6 +35,16 @@ public class SanctuaryFlame : MonoBehaviour
         if (p != null) _player = p.transform;
         if (promptText != null)
         {
+            // Fuente, tamaño y bold se aplican en código para consistencia entre escenas
+#if UNITY_EDITOR
+            var font = UnityEditor.AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>(
+                "Assets/UI/Fonts/Perfect DOS VGA 437 Win SDF.asset");
+#else
+            var font = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Perfect DOS VGA 437 Win SDF");
+#endif
+            if (font != null) promptText.font = font;
+            promptText.fontSize  = 8.0f;
+            promptText.fontStyle = TMPro.FontStyles.Bold;
             promptText.text = restPrompt;
             promptText.gameObject.SetActive(false);
         }
@@ -60,7 +70,8 @@ public class SanctuaryFlame : MonoBehaviour
         }
         if (_player == null) return;
 
-        bool near = Vector2.Distance(transform.position, _player.position) <= interactRadius;
+        // Detección horizontal: solo distancia X, tolerante a diferencia de altura
+        bool near = Mathf.Abs(_player.position.x - transform.position.x) <= interactRadius;
 
         if (near != _playerNear)
         {
@@ -86,14 +97,28 @@ public class SanctuaryFlame : MonoBehaviour
 
         // Guardar checkpoint en PlayerPrefs
         string sceneName = SceneManager.GetActiveScene().name;
+        float  sx        = _player.position.x;
+        float  sy        = _player.position.y;
         PlayerPrefs.SetString("SanctuaryScene", sceneName);
-        PlayerPrefs.SetFloat("SanctuaryX", _player.position.x);
-        PlayerPrefs.SetFloat("SanctuaryY", _player.position.y);
+        PlayerPrefs.SetFloat("SanctuaryX", sx);
+        PlayerPrefs.SetFloat("SanctuaryY", sy);
         PlayerPrefs.Save();
 
-        // Restaurar vidas
-        if (CrystalRespawnManager.Instance != null)
-            CrystalRespawnManager.Instance.RestoreLives();
+        // Guardar santuario en el slot activo — respawn al cargar partida
+        if (SaveManager.ActiveSlot >= 0 && SaveManager.Instance != null)
+        {
+            var sdata = SaveManager.Instance.Load(SaveManager.ActiveSlot);
+            if (sdata != null)
+            {
+                sdata.sanctuaryScene = sceneName;
+                sdata.sanctuaryX     = sx;
+                sdata.sanctuaryY     = sy;
+                SaveManager.Instance.Save(SaveManager.ActiveSlot, sdata);
+            }
+        }
+
+        // Restaurar vidas (funciona aunque la escena no tenga CrystalRespawnManager)
+        CrystalRespawnManager.RestoreLivesGlobal();
 
         // Feedback visual
         if (promptText != null)

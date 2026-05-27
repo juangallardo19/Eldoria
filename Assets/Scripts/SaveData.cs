@@ -11,4 +11,8 @@ public class SaveData
     public float  posX            = 0f;
     public float  posY            = 0f;
     public bool   bossDefeated    = false;     // La Obsesión derrotada — no reaparece nunca
+    public bool   hasDash         = false;     // Dash desbloqueado al derrotar al boss
+    public string sanctuaryScene  = "";        // Escena del último santuario descansado
+    public float  sanctuaryX      = 0f;
+    public float  sanctuaryY      = 0f;
 }

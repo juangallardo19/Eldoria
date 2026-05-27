@@ -33,6 +33,11 @@ public class CrystalRespawnManager : MonoBehaviour
     public bool IsRespawning => _isRespawning;
     public int  Lives        => _lives;
 
+    // Patrón Observer — PlayerHUD se suscribe a estos eventos para animar los iconos Ara
+    public static event System.Action<int>      OnLivesChanged;   // (newLives)
+    public static event System.Action<int, int> OnDamageTaken;    // (newLives, prevLives)
+    public static event System.Action<int>      OnLivesRestored;  // (newLives)
+
     // ── Ciclo de vida ────────────────────────────────────────────────────────
 
     void Awake()
@@ -51,6 +56,9 @@ public class CrystalRespawnManager : MonoBehaviour
             var data = SaveManager.Instance.Load(SaveManager.ActiveSlot);
             if (!data.isEmpty) _lives = Mathf.Max(1, data.health);
         }
+        // Notifica al HUD inmediatamente — evita que las Aras aparezcan como cenizas
+        // porque OnSceneLoaded en PlayerHUD dispara ANTES de que Start() inicialice _lives.
+        OnLivesChanged?.Invoke(_lives);
 
         _player = FindObjectOfType<PlayerController>();
         if (_player != null)
@@ -94,10 +102,12 @@ public class CrystalRespawnManager : MonoBehaviour
     }
 
     // Llamado por ataques del boss — respeta _isBlinking (post-respawn)
+    // Sin fade ni teleporte: solo animación hurt + parpadeo de invulnerabilidad.
+    // Si las vidas llegan a 0, sí ejecuta muerte con fade a santuario.
     public void TakeBossDamage(int livesLost)
     {
         if (_isRespawning || _isBlinking || _player == null) return;
-        StartCoroutine(RespawnCoroutine(livesLost));
+        StartCoroutine(BossDamageCoroutine(livesLost));
     }
 
     // Llamado por SanctuaryFlame al descansar
@@ -105,6 +115,21 @@ public class CrystalRespawnManager : MonoBehaviour
     {
         _lives = defaultLives;
         PersistHealth();
+        OnLivesRestored?.Invoke(_lives);
+        OnLivesChanged?.Invoke(_lives);
+    }
+
+    // Versión estática: funciona aunque la escena no tenga instancia (ej. MTN03 sin cristales).
+    public static void RestoreLivesGlobal(int lives = 5)
+    {
+        if (Instance != null) { Instance.RestoreLives(); return; }
+        if (SaveManager.Instance != null && SaveManager.ActiveSlot >= 0)
+        {
+            var d = SaveManager.Instance.Load(SaveManager.ActiveSlot);
+            if (d != null) { d.health = lives; SaveManager.Instance.Save(SaveManager.ActiveSlot, d); }
+        }
+        OnLivesRestored?.Invoke(lives);
+        OnLivesChanged?.Invoke(lives);
     }
 
     // ── Respawn principal ────────────────────────────────────────────────────
@@ -119,6 +144,7 @@ public class CrystalRespawnManager : MonoBehaviour
         if (livesAfter <= 0)
         {
             // ── Muerte: animación completa antes del fade ──────────────────
+            OnDamageTaken?.Invoke(0, _lives);  // HUD muestra todas las Aras muertas
             _playerAnim?.TriggerDie();
 
             _player.enabled = false;
@@ -162,6 +188,9 @@ public class CrystalRespawnManager : MonoBehaviour
         }
 
         // ── Daño normal: hurt → esperar animación completa → fade → teleport → blink ──
+        // Notifica al HUD ANTES del fade para que la animación Ara sea visible
+        OnDamageTaken?.Invoke(livesAfter, _lives);
+
         _player?.PlayHurtSound();
 
         // Re-obtener _playerAnim por si acaso llegó null entre cambios de escena
@@ -185,6 +214,7 @@ public class CrystalRespawnManager : MonoBehaviour
 
         _lives = livesAfter;
         PersistHealth();
+        OnLivesChanged?.Invoke(_lives);
 
         if (SceneFader.Instance != null) yield return SceneFader.Instance.FadeInAsync();
         else yield return new WaitForSeconds(0.4f);
@@ -212,6 +242,82 @@ public class CrystalRespawnManager : MonoBehaviour
             elapsed += blinkInterval;
         }
         _playerSR.enabled = true;
+    }
+
+    // ── Daño del boss sin teleporte ──────────────────────────────────────────
+    // Vidas > 0: solo hurt + parpadeo, jugador no se deshabilita ni hay fade.
+    // Vidas = 0: muerte completa con fade a santuario (igual que cristales).
+
+    private IEnumerator BossDamageCoroutine(int livesLost)
+    {
+        _isRespawning = true;
+
+        int livesAfter = Mathf.Max(0, _lives - livesLost);
+        var rb = _player.GetComponent<Rigidbody2D>();
+
+        if (livesAfter <= 0)
+        {
+            // Muerte por boss: animación de muerte + fade a santuario
+            OnDamageTaken?.Invoke(0, _lives);
+            if (_playerAnim == null && _player != null)
+                _playerAnim = _player.GetComponent<PlayerAnimator>();
+            _playerAnim?.TriggerDie();
+
+            _player.enabled = false;
+            if (rb != null) { rb.velocity = Vector2.zero; rb.isKinematic = true; }
+
+            yield return new WaitForSeconds(deathAnimDuration);
+
+            if (SceneFader.Instance != null) yield return SceneFader.Instance.FadeOutAsync();
+            else yield return new WaitForSeconds(0.4f);
+
+            _lives = 0;
+            PersistHealth();
+
+            string sanctScene = PlayerPrefs.GetString("SanctuaryScene", "");
+            if (!string.IsNullOrEmpty(sanctScene))
+            {
+                _lives = defaultLives;
+                PersistHealth();
+                float sx = PlayerPrefs.GetFloat("SanctuaryX", 0f);
+                float sy = PlayerPrefs.GetFloat("SanctuaryY", 0f);
+                PlayerSpawnManager.UsePositionOverride   = true;
+                PlayerSpawnManager.OverridePositionValue = new Vector2(sx, sy);
+                if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade(sanctScene);
+                else UnityEngine.SceneManagement.SceneManager.LoadScene(sanctScene);
+            }
+            else
+            {
+                _lives = defaultLives;
+                PersistHealth();
+                PlayerSpawnManager.NextSpawnId = "default";
+                if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade("MTN01_Exterior");
+                else UnityEngine.SceneManagement.SceneManager.LoadScene("MTN01_Exterior");
+            }
+            yield break;
+        }
+
+        // Daño normal: HUD + hurt animation. El jugador sigue activo y puede moverse.
+        OnDamageTaken?.Invoke(livesAfter, _lives);
+        _lives = livesAfter;
+        PersistHealth();
+
+        if (_playerAnim == null && _player != null)
+            _playerAnim = _player.GetComponent<PlayerAnimator>();
+        _playerAnim?.TriggerHurt();
+        _player?.PlayHurtSound();
+
+        // Esperar animación hurt (7 frames @ 12fps = 0.583s)
+        yield return new WaitForSeconds(0.5833f);
+
+        OnLivesChanged?.Invoke(_lives);
+
+        _isRespawning = false;
+        _isBlinking   = true;
+        if (_playerSR == null && _player != null)
+            _playerSR = _player.GetComponent<SpriteRenderer>();
+        yield return StartCoroutine(BlinkCoroutine());
+        _isBlinking = false;
     }
 
     // ── Persistencia ─────────────────────────────────────────────────────────

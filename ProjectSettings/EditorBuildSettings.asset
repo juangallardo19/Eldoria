@@ -77,4 +77,13 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Montanas/MTN10.unity
     guid: 17419c409acf613439247070e02b2cfb
+  - enabled: 1
+    path: Assets/Scenes/Montanas/PreMTN11.unity
+    guid: ab51ea986c6918f47a8e56fcfae33dd3
+  - enabled: 1
+    path: Assets/Scenes/Montanas/MTN11.unity
+    guid: dcb7b97def4c63d4ea31f6f7c005c1a9
+  - enabled: 1
+    path: Assets/Scenes/Montanas/MTN12.unity
+    guid: 0336f8f41b8271c40b1fa97a25ab15fd
   m_configObjects: {}
