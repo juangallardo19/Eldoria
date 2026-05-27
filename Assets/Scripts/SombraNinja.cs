@@ -28,7 +28,7 @@ public class SombraNinja : MonoBehaviour, IDamageable
     [SerializeField] private float attackRange  = 5.5f;  // ataca desde lejos (arco de arma largo)
     [SerializeField] private float patrolSpeed  = 2f;
     [SerializeField] private float chaseSpeed   = 3.5f;
-    [SerializeField] private float attackCooldown = 2f;
+    [SerializeField] private float attackCooldown = 3.5f;
 
     [Header("Patrulla — límites en X (world space)")]
     [SerializeField] private float patrolLeft  = -10f;
@@ -42,7 +42,7 @@ public class SombraNinja : MonoBehaviour, IDamageable
 
     [Header("FPS de cada animación")]
     [SerializeField] private float idleFps   = 8f;
-    [SerializeField] private float attackFps = 10f;
+    [SerializeField] private float attackFps = 5f;   // reducido para que el ataque sea visible y más lento
     [SerializeField] private float deathFps  = 8f;
 
     // ── Hitbox de ataque ───────────────────────────────────────────────────────

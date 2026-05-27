@@ -8,6 +8,8 @@ using TMPro;
 // Al presionar E cerca: guarda checkpoint (escena + posición) y restaura vidas.
 public class SanctuaryFlame : MonoBehaviour
 {
+    public static event System.Action OnRested;
+
     [Header("Referencias")]
     public ParticleSystem flameParticles;
     public SpriteRenderer glowRenderer;
@@ -28,6 +30,8 @@ public class SanctuaryFlame : MonoBehaviour
     private Transform _player;
     private bool      _playerNear;
     private bool      _resting;
+    private float     _nearTimer;          // cuánto tiempo lleva el jugador cerca
+    const float INTERACT_HOLD = 0.4f;     // segundos que el jugador debe estar cerca antes de que E funcione
 
     void Start()
     {
@@ -76,6 +80,7 @@ public class SanctuaryFlame : MonoBehaviour
         if (near != _playerNear)
         {
             _playerNear = near;
+            _nearTimer  = 0f;   // reiniciar timer al entrar/salir del rango
             if (promptText != null && !_resting)
                 promptText.gameObject.SetActive(near);
 
@@ -86,8 +91,11 @@ public class SanctuaryFlame : MonoBehaviour
             }
         }
 
-        // Interacción: E para descansar
-        if (_playerNear && !_resting && Input.GetKeyDown(KeyCode.E))
+        // Acumular tiempo cerca para evitar activación accidental al spawnear o pasar corriendo.
+        if (_playerNear) _nearTimer += Time.deltaTime;
+
+        // Interacción: E para descansar — solo si lleva al menos INTERACT_HOLD segundos cerca.
+        if (_playerNear && !_resting && _nearTimer >= INTERACT_HOLD && Input.GetKeyDown(KeyCode.E))
             StartCoroutine(Rest());
     }
 
@@ -119,6 +127,7 @@ public class SanctuaryFlame : MonoBehaviour
 
         // Restaurar vidas (funciona aunque la escena no tenga CrystalRespawnManager)
         CrystalRespawnManager.RestoreLivesGlobal();
+        OnRested?.Invoke();
 
         // Feedback visual
         if (promptText != null)

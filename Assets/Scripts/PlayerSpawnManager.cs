@@ -25,6 +25,9 @@ public class PlayerSpawnManager : MonoBehaviour
     // Escribir antes de cargar la escena destino para controlar dónde aparece el jugador.
     public static string NextSpawnId = "default";
 
+    // Estado de correr guardado al cruzar SceneBoundary; se restaura al jugador nuevo.
+    public static bool SavedRunningMode = false;
+
     // Santuario: posición de reaparición sin necesitar un SpawnPoint en escena.
     public static bool    UsePositionOverride    = false;
     public static Vector2 OverridePositionValue  = Vector2.zero;
@@ -101,6 +104,9 @@ public class PlayerSpawnManager : MonoBehaviour
             if (rb != null) rb.velocity = Vector2.zero;
             player.transform.position = target.transform.position;
         }
+
+        var playerCtrl = player.GetComponent<PlayerController>();
+        if (playerCtrl != null) playerCtrl.SetRunningMode(SavedRunningMode);
 
         NextSpawnId = "default";
     }

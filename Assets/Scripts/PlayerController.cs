@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 // State Machine — estados: Idle, Walking, Running, Jumping, Falling, Dashing, WallSliding, WallJumping
@@ -52,6 +53,14 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform wallCheckR;
     [SerializeField] private float     checkRadius = 0.12f;
     [SerializeField] private LayerMask groundLayer;
+
+    // ── Eventos estáticos (Observer — TutorialGate se suscribe) ──────────
+    public static event Action OnPlayerMoved;
+    public static event Action OnPlayerJumped;
+    public static event Action OnPlayerHeldJump;
+    public static event Action OnPlayerAttacked;
+    public static event Action OnPlayerDropped;
+    public static event Action OnPlayerRan;
 
     // ── Estado público (leído por PlayerAnimator) ─────────────────────────
     public bool  IsGrounded    { get; private set; }
@@ -145,6 +154,9 @@ public class PlayerController : MonoBehaviour
     {
         UpdateChecks();
 
+        // Bloquear todo input del jugador mientras hay diálogo activo
+        if (DialogueManager.IsActive) { ApplyBetterGravity(); return; }
+
         if (isDashingInternal)
         {
             dashTimer -= Time.deltaTime;
@@ -158,7 +170,10 @@ public class PlayerController : MonoBehaviour
 
         // Run toggle solo en suelo — no se puede cambiar velocidad en el aire
         if (IsGrounded && Input.GetKeyDown(GetKey("Run", KeyCode.LeftShift)))
+        {
             _runningMode = !_runningMode;
+            if (_runningMode) OnPlayerRan?.Invoke();
+        }
 
         coyoteCounter     = IsGrounded ? coyoteTime : coyoteCounter - Time.deltaTime;
         jumpBufferCounter = Input.GetKeyDown(GetKey("Jump", KeyCode.Z))
@@ -264,6 +279,7 @@ public class PlayerController : MonoBehaviour
         {
             FacingDir = Mathf.Sign(h);
             transform.localScale = new Vector3(FacingDir * Mathf.Abs(_baseScale.x), _baseScale.y, 1f);
+            OnPlayerMoved?.Invoke();
         }
 
         IsRunning = IsGrounded && Mathf.Abs(h) > 0.05f && _runningMode;
@@ -299,6 +315,7 @@ public class PlayerController : MonoBehaviour
             _airSpeed         = _runningMode ? runSpeed : walkSpeed;
             _isJumpAirborne   = true;
             if (jumpClip != null) _sfxSource.PlayOneShot(jumpClip);
+            OnPlayerJumped?.Invoke();
             return;
         }
 
@@ -329,9 +346,9 @@ public class PlayerController : MonoBehaviour
         if (holdingKey && _jumpHoldTimer > 0f && rb.velocity.y < jumpForce && !IsGrounded)
         {
             _jumpHoldTimer -= Time.deltaTime;
-            // Empuja hacia jumpForce contrarrestando gravedad
             rb.velocity = new Vector2(rb.velocity.x,
                 Mathf.Min(rb.velocity.y + jumpHoldBoost * Time.deltaTime, jumpForce));
+            OnPlayerHeldJump?.Invoke();
         }
         else
         {
@@ -376,6 +393,7 @@ public class PlayerController : MonoBehaviour
                 {
                     owp.TriggerDropThrough(0.3f);
                     rb.velocity = new Vector2(rb.velocity.x, -5f);
+                    OnPlayerDropped?.Invoke();
                     return;
                 }
 
@@ -482,8 +500,12 @@ public class PlayerController : MonoBehaviour
     }
 
     // ── Sonidos de ataque y daño (llamados desde PlayerCombat / CrystalRespawnManager) ──
-    public void PlayAttackSound() { if (attackClip != null) _sfxSource.PlayOneShot(attackClip); }
+    public void PlayAttackSound() { if (attackClip != null) _sfxSource.PlayOneShot(attackClip); OnPlayerAttacked?.Invoke(); }
     public void PlayHurtSound()   { if (hurtClip   != null) _sfxSource.PlayOneShot(hurtClip);   }
+
+    // ── Running mode persistence across scenes ────────────────────────────
+    public bool GetRunningMode() => _runningMode;
+    public void SetRunningMode(bool v) { _runningMode = v; }
 
     // ── Helpers de teclas reasignables ────────────────────────────────────
     private static KeyCode GetKey(string id, KeyCode def) => KeyRebindUI.GetKey(id, def);

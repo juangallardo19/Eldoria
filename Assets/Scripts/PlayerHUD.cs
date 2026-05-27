@@ -133,6 +133,12 @@ public class PlayerHUD : MonoBehaviour
             _portraitCam.enabled = !s_HideScenes.Contains(sceneName);
     }
 
+    public void SetVisible(bool v)
+    {
+        if (_group != null) _group.alpha = v ? 1f : 0f;
+        if (_portraitCam != null) _portraitCam.enabled = v;
+    }
+
     void SyncImmediate(int lives)
     {
         if (_aras == null) return;

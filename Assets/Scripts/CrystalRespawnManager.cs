@@ -38,6 +38,12 @@ public class CrystalRespawnManager : MonoBehaviour
     public static event System.Action<int, int> OnDamageTaken;    // (newLives, prevLives)
     public static event System.Action<int>      OnLivesRestored;  // (newLives)
 
+    // Persiste las vidas entre cambios de escena en memoria (no en disco).
+    // Evita que las vidas se restauren a 5 al cargar una nueva escena.
+    private static int   _persistedLives     = -1;
+    private static float _persistedTimestamp = -1f;
+    const float PERSIST_WINDOW = 15f;  // segundos máximos entre OnDestroy y el siguiente Start
+
     // ── Ciclo de vida ────────────────────────────────────────────────────────
 
     void Awake()
@@ -46,15 +52,34 @@ public class CrystalRespawnManager : MonoBehaviour
         Instance = this;
     }
 
-    void OnDestroy() { if (Instance == this) Instance = null; }
+    void OnDestroy()
+    {
+        if (Instance != this) return;
+        // Guardar vidas en memoria y en disco antes de que la escena se descargue.
+        _persistedLives     = _lives;
+        _persistedTimestamp = Time.realtimeSinceStartup;
+        if (_lives > 0) PersistHealth();
+        Instance = null;
+    }
 
     void Start()
     {
-        _lives = defaultLives;
-        if (SaveManager.Instance != null && SaveManager.ActiveSlot >= 0)
+        // Usar vidas en memoria si provienen de un cambio de escena reciente.
+        float age = Time.realtimeSinceStartup - _persistedTimestamp;
+        if (_persistedLives >= 0 && age < PERSIST_WINDOW)
         {
-            var data = SaveManager.Instance.Load(SaveManager.ActiveSlot);
-            if (!data.isEmpty) _lives = Mathf.Max(1, data.health);
+            _lives = _persistedLives;
+            _persistedLives     = -1;
+            _persistedTimestamp = -1f;
+        }
+        else
+        {
+            _lives = defaultLives;
+            if (SaveManager.Instance != null && SaveManager.ActiveSlot >= 0)
+            {
+                var data = SaveManager.Instance.Load(SaveManager.ActiveSlot);
+                if (data != null && !data.isEmpty) _lives = Mathf.Max(1, data.health);
+            }
         }
         // Notifica al HUD inmediatamente — evita que las Aras aparezcan como cenizas
         // porque OnSceneLoaded en PlayerHUD dispara ANTES de que Start() inicialice _lives.
@@ -177,12 +202,13 @@ public class CrystalRespawnManager : MonoBehaviour
             }
             else
             {
-                // Sin santuario visitado: enviar al inicio de las Montañas con vidas completas
+                // Sin santuario: volver al inicio del bioma donde murió el jugador.
+                string fallback = FallbackScene();
                 _lives = defaultLives;
                 PersistHealth();
                 PlayerSpawnManager.NextSpawnId = "default";
-                if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade("MTN01_Exterior");
-                else UnityEngine.SceneManagement.SceneManager.LoadScene("MTN01_Exterior");
+                if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade(fallback);
+                else UnityEngine.SceneManagement.SceneManager.LoadScene(fallback);
             }
             yield break;
         }
@@ -288,11 +314,12 @@ public class CrystalRespawnManager : MonoBehaviour
             }
             else
             {
+                string fallback = FallbackScene();
                 _lives = defaultLives;
                 PersistHealth();
                 PlayerSpawnManager.NextSpawnId = "default";
-                if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade("MTN01_Exterior");
-                else UnityEngine.SceneManagement.SceneManager.LoadScene("MTN01_Exterior");
+                if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade(fallback);
+                else UnityEngine.SceneManagement.SceneManager.LoadScene(fallback);
             }
             yield break;
         }
@@ -328,5 +355,25 @@ public class CrystalRespawnManager : MonoBehaviour
         var data = SaveManager.Instance.Load(SaveManager.ActiveSlot);
         data.health = _lives;
         SaveManager.Instance.Save(SaveManager.ActiveSlot, data);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    // Escena de respaldo si el jugador muere sin santuario guardado.
+    // HV → vuelve a la casa de Kael. MTN → vuelve al exterior de las Montañas.
+    private static string FallbackScene()
+    {
+        string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (scene.StartsWith("HV") || scene == "Intro" || scene == "MainMenu")
+            return "HV01_Interior";
+        return "MTN01_Exterior";
+    }
+
+    // Llamar desde SlotsScreenManager al iniciar/continuar partida para que
+    // las vidas de una partida anterior no contaminen la nueva.
+    public static void InvalidatePersistedLives()
+    {
+        _persistedLives     = -1;
+        _persistedTimestamp = -1f;
     }
 }

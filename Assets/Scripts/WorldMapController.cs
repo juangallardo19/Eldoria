@@ -7,7 +7,7 @@ using TMPro;
 // Patrón: Singleton + Observer + State
 //
 // Tecla M     → abre/cierra. Pausa el juego y oscurece la pantalla.
-// Tecla Tab   → (con mapa abierto) alterna entre tab HUB y MONTAÑAS.
+// Tecla Tab   → (con mapa abierto) alterna entre tab HUB y MONTAÑAS (solo dos vistas).
 // SceneLoaded → marca zona visitada, actualiza sprites, cambia al tab correcto.
 public class WorldMapController : MonoBehaviour
 {
@@ -25,13 +25,21 @@ public class WorldMapController : MonoBehaviour
 
     private WorldMapSection[] _sections;
     private WorldMapLine[]    _lines;
-    private enum TabState { Hub, Mtn, Overview }
+    private enum TabState { Hub, Mtn }
 
     private string   _currentZone   = "";
     private bool     _mapOpen       = false;
     private TabState _tabState      = TabState.Hub;
     private bool     _wasTimePaused = false;
     private float    _pulseTimer    = 0f;
+
+    // Tutorial: zona objetivo con pulso amarillo + "!"
+    private string    _tutorialObjZone  = null;
+    private Transform _tutorialMarkerTr = null;
+    private float     _tutorialPulseT   = 0f;
+
+    public void SetTutorialObjective(string zoneId) { _tutorialObjZone = zoneId; _tutorialPulseT = 0f; }
+    public void ClearTutorialObjective() { _tutorialObjZone = null; HideTutorialMarker(); }
 
     // ── Mapeo escena → zoneId ────────────────────────────────────────────
     private static readonly Dictionary<string, string> SceneToZone = new()
@@ -142,10 +150,19 @@ public class WorldMapController : MonoBehaviour
         if (_mapOpen)
         {
             _pulseTimer += Time.unscaledDeltaTime * 0.45f;
-            float sinVal  = 0.5f + 0.5f * Mathf.Sin(_pulseTimer * Mathf.PI * 2f); // 0→1
-            float scale   = 1f + 0.04f * sinVal;   // +4% en el pico
-            float tintAmt = 0.45f * sinVal;         // 45% tinte azul en el pico
+            float sinVal  = 0.5f + 0.5f * Mathf.Sin(_pulseTimer * Mathf.PI * 2f);
+            float scale   = 1f + 0.04f * sinVal;
+            float tintAmt = 0.45f * sinVal;
             UpdateCurrentPulse(scale, tintAmt);
+
+            // Pulso amarillo para zona objetivo del tutorial
+            if (!string.IsNullOrEmpty(_tutorialObjZone))
+            {
+                _tutorialPulseT += Time.unscaledDeltaTime;
+                float tSin = 0.5f + 0.5f * Mathf.Sin(_tutorialPulseT * Mathf.PI * 3f);
+                EnsureTutorialMarker();
+                UpdateTutorialObjPulse(tSin);
+            }
         }
     }
 
@@ -166,6 +183,8 @@ public class WorldMapController : MonoBehaviour
         }
         else
         {
+            HideTutorialMarker();
+            _tutorialPulseT = 0f;
             RestoreFullscreen(hubContainer);
             RestoreFullscreen(mtnContainer);
             if (!_wasTimePaused) Time.timeScale = 1f;
@@ -173,15 +192,14 @@ public class WorldMapController : MonoBehaviour
         }
     }
 
-    // ── Tabs: Hub → MTN → Vista general (ambos lado a lado) → Hub… ──────
+    // ── Tabs: Hub ↔ MTN ──────────────────────────────────────────────────
     public void SwitchTab()
     {
         _tabState = _tabState switch
         {
-            TabState.Hub      => TabState.Mtn,
-            TabState.Mtn      => TabState.Overview,
-            TabState.Overview => TabState.Hub,
-            _                 => TabState.Hub,
+            TabState.Hub => TabState.Mtn,
+            TabState.Mtn => TabState.Hub,
+            _            => TabState.Hub,
         };
         ApplyTab();
     }
@@ -210,28 +228,10 @@ public class WorldMapController : MonoBehaviour
                 mtnContainer?.SetActive(true);
                 hubContainer?.SetActive(false);
                 break;
-            case TabState.Overview:
-                hubContainer?.SetActive(true);
-                mtnContainer?.SetActive(true);
-                SetHalfScreen(mtnContainer, rightSide: false);   // MTN izquierda
-                SetHalfScreen(hubContainer,  rightSide: true);   // HUB derecha
-                break;
         }
     }
 
-    // Ocupa la mitad izquierda o derecha del canvas
-    void SetHalfScreen(GameObject container, bool rightSide)
-    {
-        if (container == null) return;
-        var rt = container.GetComponent<RectTransform>();
-        if (rt == null) return;
-        rt.anchorMin = rightSide ? new Vector2(0.5f, 0f) : Vector2.zero;
-        rt.anchorMax = rightSide ? Vector2.one            : new Vector2(0.5f, 1f);
-        rt.offsetMin = new Vector2(6f,  6f);
-        rt.offsetMax = new Vector2(-6f, -6f);
-    }
-
-    // Restaura el container a pantalla completa (usado al volver de Overview o al cerrar)
+    // Restaura el container a pantalla completa al cerrar
     void RestoreFullscreen(GameObject container)
     {
         if (container == null) return;
@@ -340,9 +340,64 @@ public class WorldMapController : MonoBehaviour
         })
             PlayerPrefs.DeleteKey("MapVisited_" + id);
 
-        // Pre-discovered zones must always be visible; Awake() won't re-run for
-        // the DDOL singleton, so we re-mark them here after every clear.
         foreach (var z in PreDiscoveredZones) MarkVisited(z);
         PlayerPrefs.Save();
+    }
+
+    // ── Tutorial: zona objetivo con pulso amarillo y "!" ──────────────────
+
+    void EnsureTutorialMarker()
+    {
+        if (string.IsNullOrEmpty(_tutorialObjZone)) return;
+        if (_sections == null) _sections = GetComponentsInChildren<WorldMapSection>(true);
+
+        foreach (var sec in _sections)
+        {
+            if (sec == null || sec.zoneId != _tutorialObjZone || !sec.gameObject.activeSelf) continue;
+
+            var existing = sec.transform.Find("[!TutObj]");
+            if (existing == null)
+            {
+                var go  = new GameObject("[!TutObj]");
+                go.transform.SetParent(sec.transform, false);
+                var rt  = go.AddComponent<RectTransform>();
+                var secRt = sec.GetComponent<RectTransform>();
+                float h = secRt != null ? secRt.rect.height * 0.5f + 14f : 18f;
+                rt.anchoredPosition = new Vector2(0f, h);
+                rt.sizeDelta        = new Vector2(28f, 28f);
+                var txt       = go.AddComponent<TMPro.TextMeshProUGUI>();
+                txt.text      = "!";
+                txt.fontSize  = 26f;
+                txt.fontStyle = TMPro.FontStyles.Bold;
+                txt.color     = Color.yellow;
+                txt.alignment = TMPro.TextAlignmentOptions.Center;
+                existing = go.transform;
+            }
+            existing.gameObject.SetActive(true);
+            _tutorialMarkerTr = existing;
+            return;
+        }
+    }
+
+    void HideTutorialMarker()
+    {
+        if (_tutorialMarkerTr != null) _tutorialMarkerTr.gameObject.SetActive(false);
+    }
+
+    void UpdateTutorialObjPulse(float t)
+    {
+        if (_sections == null) return;
+        foreach (var sec in _sections)
+        {
+            if (sec == null || !sec.gameObject.activeSelf || sec.zoneId != _tutorialObjZone) continue;
+            // Escala +7% y tinte amarillo
+            sec.transform.localScale = Vector3.one * (1f + 0.07f * t);
+            if (sec.sectionImage != null)
+                sec.sectionImage.color = Color.Lerp(Color.white, new Color(1f, 0.88f, 0f, 1f), 0.35f + 0.4f * t);
+            // Pulso del "!"
+            if (_tutorialMarkerTr != null)
+                _tutorialMarkerTr.localScale = Vector3.one * (1f + 0.3f * t);
+            return;
+        }
     }
 }

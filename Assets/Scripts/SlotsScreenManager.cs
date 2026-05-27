@@ -210,6 +210,7 @@ public class SlotsScreenManager : MonoBehaviour
         var data = new SaveData { isEmpty = false, slotName = $"Partida {slot + 1}", zoneName = "Inicio", health = 5 };
         SaveManager.Instance?.Save(slot, data);
         SaveManager.Instance?.SelectSlot(slot);
+        CrystalRespawnManager.InvalidatePersistedLives();
 
         // Resetear contadores de sesión del DDOL GameSaveController para que el tiempo
         // acumulado de la partida anterior no se sume al nuevo juego.
@@ -223,6 +224,7 @@ public class SlotsScreenManager : MonoBehaviour
     {
         var data = SaveManager.Instance != null ? SaveManager.Instance.Load(slot) : null;
         SaveManager.Instance?.SelectSlot(slot);
+        CrystalRespawnManager.InvalidatePersistedLives();
 
         // Si el jugador descansó en un santuario, volver ahí al cargar la partida
         if (data != null && !string.IsNullOrEmpty(data.sanctuaryScene))

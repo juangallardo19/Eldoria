@@ -28,8 +28,8 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Hitbox — hijo 'AttackHitbox' (se crea auto si está vacío)")]
     [SerializeField] private BoxCollider2D hitbox;
-    [SerializeField] private Vector2 hitboxOffset = new Vector2(1.2f, 1.5f);
-    [SerializeField] private Vector2 hitboxSize   = new Vector2(3f, 3f);
+    [SerializeField] private Vector2 hitboxOffset = new Vector2(2.0f, 1.0f);
+    [SerializeField] private Vector2 hitboxSize   = new Vector2(6f, 4f);
 
     [Header("Daño por golpe")]
     [SerializeField] private int combo1Damage = 10;
@@ -46,6 +46,8 @@ public class PlayerCombat : MonoBehaviour
     private float _comboTimer;   // tiempo restante del golpe actual
     private bool  _nextQueued;   // X presionado durante ventana → ejecutar siguiente
     private bool  _hitDealt;     // para marcar que ya se hizo daño en este swing
+
+    public static event System.Action OnCombo3Started;
 
     private static readonly int _hashAtk1 = Animator.StringToHash("IsAttacking1");
     private static readonly int _hashAtk2 = Animator.StringToHash("IsAttacking2");
@@ -110,7 +112,7 @@ public class PlayerCombat : MonoBehaviour
             {
                 case 1: _anim.SetTrigger(_hashAtk1); break;
                 case 2: _anim.SetTrigger(_hashAtk2); break;
-                case 3: _anim.SetTrigger(_hashAtk3); break;
+                case 3: _anim.SetTrigger(_hashAtk3); OnCombo3Started?.Invoke(); break;
             }
         }
 

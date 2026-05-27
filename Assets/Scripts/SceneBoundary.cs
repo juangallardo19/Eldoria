@@ -21,6 +21,9 @@ public class SceneBoundary : MonoBehaviour
 
         PlayerSpawnManager.NextSpawnId = spawnId;
 
+        var pc = other.GetComponent<PlayerController>();
+        if (pc != null) PlayerSpawnManager.SavedRunningMode = pc.GetRunningMode();
+
         if (SceneFader.Instance != null)
             SceneFader.Instance.LoadScene(targetScene);
         else

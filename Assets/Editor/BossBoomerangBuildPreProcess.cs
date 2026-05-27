@@ -41,6 +41,13 @@ public class BossBoomerangBuildPreProcess : IPreprocessBuildWithReport
         }
         if (!alreadyLoaded)
             scene = EditorSceneManager.OpenScene(SCENE_PATH, OpenSceneMode.Additive);
+
+        if (!scene.IsValid() || !scene.isLoaded)
+        {
+            Debug.LogWarning("[BossBoomerangBuildPreProcess] MTN10 no pudo cargarse durante el build. Los frames de boomerang no se inyectarán automáticamente.");
+            return;
+        }
+
         bool wired = false;
 
         foreach (var root in scene.GetRootGameObjects())

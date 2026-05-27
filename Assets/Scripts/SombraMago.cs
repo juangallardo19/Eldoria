@@ -37,11 +37,13 @@ public class SombraMago : MonoBehaviour, IDamageable
     // ── Animación ──────────────────────────────────────────────────────────────
     [Header("Frames de animación (asignados por SetupSombraMago)")]
     [SerializeField] private Sprite[] idleFrames;
+    [SerializeField] private Sprite[] attackFrames;  // atack sombra1-6: animación del cuerpo al lanzar
     [SerializeField] private Sprite[] hurtFrames;
 
     [Header("FPS de cada animación")]
-    [SerializeField] private float idleFps = 8f;
-    [SerializeField] private float hurtFps = 8f;
+    [SerializeField] private float idleFps   = 8f;
+    [SerializeField] private float attackFps = 9f;   // 6 frames / 9fps ≈ 0.67s (castDelay=0.4s dispara en frame 4)
+    [SerializeField] private float hurtFps   = 8f;
 
     // ── Proyectil ──────────────────────────────────────────────────────────────
     [Header("Proyectil")]
@@ -126,9 +128,8 @@ public class SombraMago : MonoBehaviour, IDamageable
         }
         else if (_state == MagoState.Chase && _player != null)
         {
-            float dist = Vector2.Distance(transform.position, _player.position);
-            // Mantener distancia de combate: acercarse si lejos, detenerse en attackRange
-            if (dist > attackRange + 0.5f)
+            float dx = Mathf.Abs(_player.position.x - transform.position.x);
+            if (dx > attackRange + 0.5f)
                 vx = Mathf.Sign(_player.position.x - transform.position.x) * chaseSpeed;
         }
 
@@ -180,11 +181,12 @@ public class SombraMago : MonoBehaviour, IDamageable
     private MagoState GetStateByDistance()
     {
         if (_player == null) return MagoState.Patrol;
+        float dx   = Mathf.Abs(_player.position.x - transform.position.x);
         float dist = Vector2.Distance(transform.position, _player.position);
 
-        if (dist > loseRange) return MagoState.Patrol;
-        if (dist <= attackRange && _attackCooldownTimer <= 0f) return MagoState.Attack;
-        if (dist <= detectRange) return MagoState.Chase;
+        if (dx > loseRange)  return MagoState.Patrol;
+        if (dx <= attackRange && _attackCooldownTimer <= 0f) return MagoState.Attack;
+        if (dx <= detectRange)  return MagoState.Chase;
         return MagoState.Patrol;
     }
 
@@ -205,10 +207,15 @@ public class SombraMago : MonoBehaviour, IDamageable
             case MagoState.Idle:
             case MagoState.Patrol:
             case MagoState.Chase:
-            case MagoState.Attack:  // el mago anima idle mientras carga el hechizo
                 PlayAnim(idleFrames, idleFps);
-                if (next == MagoState.Attack)
-                    _attackCooldownTimer = attackCooldown;
+                break;
+
+            case MagoState.Attack:
+                // Frames del cuerpo del mago durante el lanzamiento (atack sombra1-6).
+                // Si no están asignados, usa idle como fallback.
+                var atkAnim = (attackFrames != null && attackFrames.Length > 0) ? attackFrames : idleFrames;
+                PlayAnim(atkAnim, attackFps);
+                _attackCooldownTimer = attackCooldown;
                 break;
 
             case MagoState.Hurt:
@@ -234,9 +241,16 @@ public class SombraMago : MonoBehaviour, IDamageable
     {
         if (projectilePrefab == null || _player == null) return;
 
-        // Apuntar al centro del jugador
-        Vector2 origin = transform.position;
-        Vector2 target = new Vector2(_player.position.x, _player.position.y + 0.5f);
+        // Disparar desde el centro del cuerpo (offset del BoxCollider en world space)
+        // para que el proyectil no nazca en el suelo y se autodestruya de inmediato.
+        var bodyCol = GetComponent<BoxCollider2D>();
+        float ctrY  = bodyCol != null ? bodyCol.offset.y * transform.lossyScale.y : 1.3f;
+
+        Vector2 origin = (Vector2)transform.position + new Vector2(0f, ctrY);
+        // Apuntar al centro del jugador; si está demasiado cerca garantizar dirección horizontal
+        float rawDx = _player.position.x - transform.position.x;
+        float aimX  = Mathf.Abs(rawDx) < 0.5f ? _facingDir : rawDx;
+        Vector2 target = new Vector2(transform.position.x + aimX, _player.position.y + ctrY);
         Vector2 dir    = (target - origin).normalized;
 
         var go   = Instantiate(projectilePrefab, origin, Quaternion.identity);

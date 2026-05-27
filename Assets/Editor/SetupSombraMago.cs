@@ -9,6 +9,7 @@ using UnityEditor.SceneManagement;
 // Paso 1 — Eldoria/SombraMago/1 - Importar Sprites
 //   · sombra idle movement.png  → 10 frames a 80px de stride (PPU=16, pivot 0.25/0)
 //   · damage sombra.png         → 5  frames a 74px de stride (PPU=16, pivot 0.25/0)
+//   · atack sombra1-6.png       → 6 sprites individuales para la animación del cuerpo al lanzar
 //   · atack sombraprime1-6.png  → 6 sprites individuales para el proyectil (PPU=16, pivot 0.5/0.5)
 //
 // Paso 2 — Eldoria/SombraMago/2 - Crear Prefab Proyectil
@@ -31,6 +32,10 @@ public static class SetupSombraMago
 
         // ── Damage/Hurt: 5 frames, stride 74px, último = 373-296=77px ─────────
         SliceSheet("damage sombra", 5, 74, 50, 0.25f, 0f);
+
+        // ── Ataque cuerpo: 6 archivos individuales, pivot centrado ───────────
+        for (int i = 1; i <= 6; i++)
+            ImportSingle($"atack sombra{i}");
 
         // ── Proyectil prime: 6 archivos individuales, pivot centrado ──────────
         for (int i = 1; i <= 6; i++)
@@ -109,8 +114,9 @@ public static class SetupSombraMago
         if (old != null) Undo.DestroyObjectImmediate(old);
 
         // Cargar sprites
-        var idleSprites = LoadSortedSheet("sombra idle movement");
-        var hurtSprites = LoadSortedSheet("damage sombra");
+        var idleSprites   = LoadSortedSheet("sombra idle movement");
+        var hurtSprites   = LoadSortedSheet("damage sombra");
+        var attackSprites = LoadSingleSet("atack sombra", 6);
 
         if (idleSprites.Length == 0)
         {
@@ -152,8 +158,9 @@ public static class SetupSombraMago
         var mago = root.AddComponent<SombraMago>();
         var so   = new SerializedObject(mago);
 
-        AssignSpriteArray(so, "idleFrames", idleSprites);
-        AssignSpriteArray(so, "hurtFrames", hurtSprites);
+        AssignSpriteArray(so, "idleFrames",   idleSprites);
+        AssignSpriteArray(so, "attackFrames", attackSprites);
+        AssignSpriteArray(so, "hurtFrames",   hurtSprites);
         so.FindProperty("projectilePrefab").objectReferenceValue = projPrefab;
         so.FindProperty("patrolLeft") .floatValue = -42f;
         so.FindProperty("patrolRight").floatValue =  18f;
@@ -175,7 +182,8 @@ public static class SetupSombraMago
             "SombraMago_1 colocado en MTN04.\n\n" +
             "• Pos (-12, -7) — zona izquierda de la cúpula\n" +
             "• Patrulla x=[-42, 18]\n" +
-            "• Detecta jugador a 18u, dispara a 10u\n\n" +
+            "• Detecta jugador a 18u, dispara a 10u\n" +
+            "• Attack frames (atack sombra1-6) asignados al cuerpo\n\n" +
             "Ajusta posición y collider en el Inspector si es necesario.", "OK");
     }
 
@@ -255,6 +263,19 @@ public static class SetupSombraMago
             .OfType<Sprite>()
             .OrderBy(s => s.rect.x)
             .ToArray();
+    }
+
+    static Sprite[] LoadSingleSet(string prefix, int count)
+    {
+        var result = new Sprite[count];
+        for (int i = 0; i < count; i++)
+        {
+            string path = SpritePath + $"{prefix}{i + 1}.png";
+            result[i] = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (result[i] == null)
+                Debug.LogWarning($"[SombraMago] No encontrado: {path}");
+        }
+        return result;
     }
 
     static void AssignSpriteArray(SerializedObject so, string propName, Sprite[] sprites)
