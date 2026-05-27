@@ -1,17 +1,17 @@
 using System.Collections;
 using UnityEngine;
 
-// State Machine + Strategy — Boss de la Obsesión.
+// Pattern: State Machine + Strategy — Boss of the Obsession.
 //
-// Estados: Dormant → Waking → Phase1 → Phase2(buff) → Phase3 → Dead
+// States: Dormant → Waking → Phase1 → Phase2(buff) → Phase3 → Dead
 //
-// Strategy de ataques por distancia:
-//   Cerca  (≤ meleeRange)  : melee / super
-//   Lejos  (> meleeRange)  : range / boomerang / spincharge
-//   Melee/super elegido de lejos → boss se acerca primero (ApproachPlayer)
+// Strategy by distance:
+//   Close  (≤ meleeRange)  : melee / super
+//   Far    (> meleeRange)  : range / boomerang / spincharge
+//   Melee/super chosen from far → boss approaches first (ApproachPlayer)
 //
-// Mecánica de Obsesión: _repeatCount → repite el mismo ataque N veces antes de cambiar.
-// Arena: clamp a [arenaMinX, arenaMaxX] en LateUpdate.
+// Obsession mechanic: _repeatCount → repeats the same attack N times before switching.
+// Arena: clamped to [arenaMinX, arenaMaxX] in LateUpdate.
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
 [RequireComponent(typeof(BossObsesionAnimator))]
@@ -26,40 +26,40 @@ public class BossObsesion : MonoBehaviour, IDamageable
     [SerializeField] private float moveSpeed   = 4f;
     [SerializeField] private float detectRange = 25f;
 
-    [Header("Arena MTN10 — límites de sala")]
+    [Header("Arena MTN10 — room bounds")]
     [SerializeField] private float arenaMinX  = -62f;
     [SerializeField] private float arenaMaxX  =  62f;
 
-    [Header("Distancias de combate")]
+    [Header("Combat ranges")]
     [SerializeField] private float meleeRange = 5f;
 
-    [Header("Hitboxes de ataque")]
+    [Header("Attack hitboxes")]
     [SerializeField] private BossAttackHitbox meleeHitbox;
     [SerializeField] private BossAttackHitbox spinHitbox;
 
-    [Header("Proyectiles")]
+    [Header("Projectiles")]
     [SerializeField] private Transform  rangeSpawnPoint;
     [SerializeField] private GameObject projectilePrefab;
     [SerializeField] private GameObject boomerangPrefab;
     [SerializeField] private Sprite     projectileSprite;
-    [SerializeField] private Sprite[]   boomerangFrames;  // sub-sprites de boomarang arms.png (arrastra todos en orden)
+    [SerializeField] private Sprite[]   boomerangFrames;  // sub-sprites from boomarang arms.png (drag all in order)
 
-    [Header("Visual (independiente de hitbox)")]
+    [Header("Visual (independent from hitbox)")]
     [SerializeField] private float spriteYOffset = 0f;
     [SerializeField] private float spriteXOffset = 0f;
 
-    [Header("Audio del Boss")]
+    [Header("Boss audio")]
     [SerializeField] private AudioClip bossMusic;
 
-    [Header("Despertar — pausa dramática antes de animar")]
+    [Header("Wake — dramatic pause before animating")]
     [SerializeField] private float wakeStillDuration = 1.5f;
 
-    [Header("Range / Super — posición relativa del impacto (si rangeSpawnPoint es null)")]
-    [SerializeField] private float rangeSpawnOffsetX =  5f;  // unidades delante del boss
+    [Header("Range / Super — hit position offset (when rangeSpawnPoint is null)")]
+    [SerializeField] private float rangeSpawnOffsetX =  5f;  // units in front of the boss
     [SerializeField] private float rangeSpawnOffsetY =  0f;
     [SerializeField] private Vector2 superHitboxSize = new Vector2(5f, 6f);
 
-    // ── Estado ────────────────────────────────────────────────────────────────
+    // ── State ─────────────────────────────────────────────────────────────────
 
     private int                  _hp;
     private BossPhase            _phase = BossPhase.Dormant;
@@ -68,19 +68,19 @@ public class BossObsesion : MonoBehaviour, IDamageable
     private SpriteRenderer       _sr;
     private Transform            _player;
     private bool                 _flashing;
-    private SpriteRenderer       _visualSR;   // hijo "Visual" — sprite posicionado independiente del hitbox
+    private SpriteRenderer       _visualSR;   // "Visual" child — sprite positioned independently of the hitbox
 
     private string _lastAttack  = "";
     private int    _repeatCount = 0;
 
-    // ── Eventos (BossHealthBar se suscribe aquí) ──────────────────────────────
+    // ── Events (BossHealthBar subscribes here) ────────────────────────────────
 
     public static event System.Action<int, int>  OnHealthChanged;
     public static event System.Action<BossPhase> OnPhaseChanged;
-    public static event System.Action            OnBossDefeated;  // boss HP=0, antes de extracción
-    public static event System.Action            OnBossDead;      // extracción completa
+    public static event System.Action            OnBossDefeated;  // boss HP=0, before extraction
+    public static event System.Action            OnBossDead;      // extraction complete
 
-    // Bloquea SceneBoundary durante la pelea — evita que el jugador escape sin deshabilitar triggers
+    // Blocks SceneBoundary during the fight — prevents the player escaping without disabling triggers
     public static bool IsArenaActive = false;
 
     public BossPhase Phase   => _phase;
@@ -97,13 +97,13 @@ public class BossObsesion : MonoBehaviour, IDamageable
         _rb.constraints  = RigidbodyConstraints2D.FreezeRotation;
         _rb.gravityScale = 1f;
 
-        // Crear hijo "Visual" con su propio SpriteRenderer desplazado en Y.
-        // El Animator sigue actualizando _sr (root, deshabilitado visualmente).
-        // _visualSR copia sprite/flipX/color cada frame → posición independiente del hitbox.
+        // Create a "Visual" child with its own Y-offset SpriteRenderer.
+        // The Animator continues updating _sr (root, visually disabled).
+        // _visualSR copies sprite/flipX/color every frame → position is independent of the hitbox.
         _sr.enabled = false;
         var visualGO = new GameObject("Visual");
-        // false = mantener transforms LOCALES; si usáramos true Unity ajustaría localScale
-        // a (1/bossScale) para conservar world scale, haciendo el sprite aparecer microscópico.
+        // false = keep LOCAL transforms; using true would make Unity adjust localScale to
+        // (1/bossScale) to preserve world scale, causing the sprite to appear microscopic.
         visualGO.transform.SetParent(transform, false);
         visualGO.transform.localPosition = new Vector3(spriteXOffset, spriteYOffset, 0f);
         _visualSR               = visualGO.AddComponent<SpriteRenderer>();
@@ -114,7 +114,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
 
     void Start()
     {
-        // Si el boss ya fue derrotado en esta partida, no vuelve a aparecer
+        // If the boss was already defeated in this save, it never respawns
         if (SaveManager.ActiveSlot >= 0 && SaveManager.Instance != null)
         {
             var saved = SaveManager.Instance.Load(SaveManager.ActiveSlot);
@@ -128,11 +128,11 @@ public class BossObsesion : MonoBehaviour, IDamageable
         _hp    = maxHP;
         _phase = BossPhase.Dormant;
         _anim.PlaySleep();
-        // No invocamos OnHealthChanged aquí: la barra solo aparece al entrar en Phase1
+        // OnHealthChanged is not invoked here: the bar only appears when Phase1 starts
 
-        // Pre-cargar frames del boomerang en editor Play Mode si no fueron asignados
-        // en el Inspector (evita el recuadro naranja de fallback sin necesitar el editor script).
-        // En builds, los frames deben estar serializados por WireBossBoomerangFrames o BuildPreProcess.
+        // Pre-load boomerang frames in editor Play Mode if they were not assigned in the
+        // Inspector (avoids the orange fallback box without needing the editor script).
+        // In builds the frames must be serialised by WireBossBoomerangFrames or BuildPreProcess.
 #if UNITY_EDITOR
         if (boomerangFrames == null || boomerangFrames.Length == 0 ||
             System.Array.TrueForAll(boomerangFrames, s => s == null))
@@ -150,7 +150,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         if (pc != null)
         {
             _player = pc.transform;
-            // El boss NO actúa como plataforma — ignorar colisión física entre cuerpos
+            // The boss does NOT act as a platform — ignore physics collision between bodies
             var playerCol = pc.GetComponent<BoxCollider2D>();
             var bossBody  = GetComponent<BoxCollider2D>();
             if (playerCol != null && bossBody != null)
@@ -158,7 +158,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         }
     }
 
-    // ── Loop principal ────────────────────────────────────────────────────────
+    // ── Main loop ─────────────────────────────────────────────────────────────
 
     void Update()
     {
@@ -174,8 +174,8 @@ public class BossObsesion : MonoBehaviour, IDamageable
 
     void LateUpdate()
     {
-        // Proxy visual: copiar sprite/flip/color al hijo "Visual" en todo momento.
-        // El Animator actualiza _sr aunque esté disabled; aquí lo propagamos al renderer visible.
+        // Visual proxy: copy sprite/flip/color to the "Visual" child every frame.
+        // The Animator updates _sr even when disabled; propagate to the visible renderer here.
         if (_visualSR != null)
         {
             _visualSR.sprite = _sr.sprite;
@@ -183,7 +183,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
             _visualSR.color  = _sr.color;
         }
 
-        // Clamp de arena — solo durante fases activas de combate
+        // Arena clamp — only during active combat phases
         if (_phase == BossPhase.Dead || _phase == BossPhase.Defeated) return;
 
         float bossX = _rb.position.x;
@@ -199,7 +199,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         }
     }
 
-    // ── Despertar ─────────────────────────────────────────────────────────────
+    // ── Wake-up ───────────────────────────────────────────────────────────────
 
     private void TryWake()
     {
@@ -213,44 +213,44 @@ public class BossObsesion : MonoBehaviour, IDamageable
         float dist = Mathf.Abs(_player.position.x - transform.position.x);
         if (dist <= detectRange)
         {
-            _phase = BossPhase.Waking;  // evita que Update re-entre en TryWake
+            _phase = BossPhase.Waking;  // prevents Update from re-entering TryWake
             StartCoroutine(WakeUpSequence());
         }
     }
 
     private IEnumerator WakeUpSequence()
     {
-        // Habilitar barreras físicas de arena y bloquear transiciones de escena
+        // Enable arena physics barriers and block scene transitions
         foreach (var ab in FindObjectsOfType<ArenaBarrier>(true))
             ab.gameObject.SetActive(true);
         IsArenaActive = true;
 
-        // Música del boss arranca inmediatamente
+        // Boss music starts immediately
         if (bossMusic != null && AudioManager.Instance != null)
             AudioManager.Instance.PlayMusic(bossMusic);
 
-        // Redirigir cámara al boss para que el jugador lo vea despertarse
+        // Redirect camera to boss so the player sees it wake up
         var camFollow      = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
         Transform origTarget = camFollow != null ? camFollow.target : null;
         if (camFollow != null)
         {
             camFollow.target = transform;
-            // Snap inmediato — la cámara enfoca al boss sin esperar el SmoothDamp
+            // Immediate snap — camera focuses on the boss without waiting for SmoothDamp
             if (Camera.main != null)
                 Camera.main.transform.position = new Vector3(
                     transform.position.x, transform.position.y, Camera.main.transform.position.z);
         }
 
-        // Temblor mientras la cámara viaja al boss y el boss permanece quieto
+        // Shake while camera travels to boss and boss stays still
         StartCoroutine(ShakeCamera(wakeStillDuration, 0.12f));
         yield return new WaitForSeconds(wakeStillDuration);
 
         _anim.PlayWake();
         yield return new WaitForSeconds(_anim.WakeDuration);
 
-        // Restaurar cámara al jugador (CameraFollow.SmoothDamp hace la transición suave)
+        // Restore camera to player (CameraFollow.SmoothDamp handles the smooth transition)
         if (camFollow != null) camFollow.target = origTarget;
-        yield return new WaitForSeconds(0.35f);  // pausa para que la cámara llegue al jugador
+        yield return new WaitForSeconds(0.35f);  // brief wait for camera to reach the player
 
         _phase = BossPhase.Phase1;
         OnPhaseChanged?.Invoke(_phase);
@@ -258,7 +258,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         StartCoroutine(AttackLoop());
     }
 
-    // ── Loop de ataque ────────────────────────────────────────────────────────
+    // ── Attack loop ───────────────────────────────────────────────────────────
 
     private IEnumerator AttackLoop()
     {
@@ -266,17 +266,17 @@ public class BossObsesion : MonoBehaviour, IDamageable
         {
             if (_player == null) { yield return null; continue; }
 
-            // Pausa entre ataques con animación Idle
+            // Idle pause between attacks
             _anim.PlayIdle();
             yield return new WaitForSeconds(GetIdleDelay());
             if (_phase == BossPhase.Dead) break;
 
             FacePlayer();
 
-            // Elegir ataque según distancia actual
+            // Choose attack based on current distance
             string attack = ChooseAttack();
 
-            // Ataques cuerpo a cuerpo: acercarse primero si el jugador está lejos
+            // Melee attacks: approach first if the player is far away
             if ((attack == "melee" || attack == "super") && DistToPlayer() > meleeRange)
                 yield return StartCoroutine(ApproachPlayer());
 
@@ -287,7 +287,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         }
     }
 
-    // Mueve al boss hacia el jugador hasta estar en rango melee (timeout 5s)
+    // Moves the boss toward the player until within melee range (5s timeout)
     private IEnumerator ApproachPlayer()
     {
         _anim.PlayMove();
@@ -307,11 +307,11 @@ public class BossObsesion : MonoBehaviour, IDamageable
         _rb.velocity = new Vector2(0f, _rb.velocity.y);
     }
 
-    // ── Strategy: elección de ataque ─────────────────────────────────────────
+    // ── Strategy: attack selection ────────────────────────────────────────────
 
     private string ChooseAttack()
     {
-        // Mecánica de Obsesión: repetir el mismo ataque hasta maxRepeat veces
+        // Obsession mechanic: repeat the same attack up to maxRepeat times
         int maxRepeat = _phase switch
         {
             BossPhase.Phase1 => 2,
@@ -325,8 +325,8 @@ public class BossObsesion : MonoBehaviour, IDamageable
             return _lastAttack;
         }
 
-        // Pool según distancia al jugador y fase actual
-        // "armsweep" = brazos rasantes que el jugador debe saltar (funciona a cualquier distancia)
+        // Pool based on current distance and phase
+        // "armsweep" = floor-skimming arms the player must jump (works at any distance)
         string[] pool;
         if (DistToPlayer() <= meleeRange)
         {
@@ -366,15 +366,15 @@ public class BossObsesion : MonoBehaviour, IDamageable
         }
     }
 
-    // ── Ataques individuales ──────────────────────────────────────────────────
+    // ── Individual attacks ────────────────────────────────────────────────────
 
     private IEnumerator DoMelee()
     {
         _anim.PlayMelee();
-        yield return new WaitForSeconds(0.9f);   // windup: frames 0-10 (frame 11 @ 12fps)
+        yield return new WaitForSeconds(0.9f);   // windup: frames 0-10 (frame 11 @ 12 fps)
 
         if (meleeHitbox != null) meleeHitbox.Activate(1);
-        yield return new WaitForSeconds(0.45f);  // activo: frames 11-16
+        yield return new WaitForSeconds(0.45f);  // active: frames 11-16
         if (meleeHitbox != null) meleeHitbox.Deactivate();
 
         float rest = _anim.MeleeDuration - 1.35f;
@@ -384,16 +384,16 @@ public class BossObsesion : MonoBehaviour, IDamageable
     private IEnumerator DoRange()
     {
         _anim.PlayRange();
-        yield return new WaitForSeconds(1.1f);   // windup: frame 11 @ 10fps
+        yield return new WaitForSeconds(1.1f);   // windup: frame 11 @ 10 fps
 
-        // Hitbox activa solo frames 11-12 = 2 frames @ 10fps = 0.2s
+        // Hitbox active only frames 11-12 = 2 frames @ 10 fps = 0.2s
         SpawnProjectile(lifetimeOverride: 0.2f);
 
         float rest = _anim.RangeDuration - 1.1f;
         if (rest > 0f) yield return new WaitForSeconds(rest);
     }
 
-    // Flujo boomerang: SpinCharge → lanza brazos → boss Idle/Move hasta que vuelvan → SpinEnd
+    // Boomerang flow: SpinCharge → launch arms → boss Idle/Move while arms are out → SpinEnd
     private IEnumerator DoBoomerang()
     {
         _anim.PlaySpinCharge();
@@ -402,7 +402,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         bool returned = false;
         SpawnBoomerang(() => returned = true);
 
-        // Mientras los brazos están fuera: boss en Idle/Move, NO ataca
+        // While arms are out: boss Idle/Move only, does NOT attack
         while (!returned && _phase != BossPhase.Dead)
         {
             FacePlayer();
@@ -410,13 +410,13 @@ public class BossObsesion : MonoBehaviour, IDamageable
             float dist = DistToPlayer();
             if (dist > meleeRange + 1f)
             {
-                // Se acerca al jugador caminando
+                // Walk toward the player
                 _rb.velocity = new Vector2(DirToPlayer() * GetMoveSpeed(), _rb.velocity.y);
                 _anim.PlayMove();
             }
             else
             {
-                // Ya está cerca: se queda quieto en Idle
+                // Already close: stay still in Idle
                 _rb.velocity = new Vector2(0f, _rb.velocity.y);
                 _anim.PlayIdle();
             }
@@ -429,7 +429,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         yield return new WaitForSeconds(_anim.SpinEndDuration);
     }
 
-    // Dash hacia el jugador con hitbox de spin activo
+    // Dash toward the player with spin hitbox active
     private IEnumerator DoSpinCharge()
     {
         _anim.PlaySpinCharge();
@@ -461,7 +461,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         _anim.PlaySuper();
         yield return new WaitForSeconds(1.0f);   // windup: frames 0-9
 
-        // Super usa la misma posición que el range attack (delante del boss)
+        // Super uses the same position as the range attack (in front of the boss)
         DamageAtRangePosition(2);
 
         yield return new WaitForSeconds(0.45f);
@@ -470,28 +470,28 @@ public class BossObsesion : MonoBehaviour, IDamageable
         if (rest > 0f) yield return new WaitForSeconds(rest);
     }
 
-    // Barrido rasante de brazos — salen en ambas direcciones a ras del suelo.
-    // El jugador debe saltar ~1.5u para esquivarlos.
-    // Flujo igual que DoBoomerang: SpinCharge → SpinEnd → spawn → Boomerang body-solo
+    // Floor-skimming arm sweep — arms fly out in both directions at ground level.
+    // The player must jump ~1.5u to dodge.
+    // Same flow as DoBoomerang: SpinCharge → SpinEnd → spawn → Boomerang body-only
     private IEnumerator DoArmSweep()
     {
-        yield return StartCoroutine(ObsessiveTwitch());   // carga visual
+        yield return StartCoroutine(ObsessiveTwitch());   // charge visual
 
         _anim.PlaySpinCharge();
         yield return new WaitForSeconds(_anim.SpinChargeDuration);
 
-        _anim.PlaySpinEnd();                            // transición antes del lanzamiento
+        _anim.PlaySpinEnd();                            // transition before launch
         yield return new WaitForSeconds(_anim.SpinEndDuration);
 
-        // Ambos brazos salen simultáneamente en direcciones opuestas
+        // Both arms launch simultaneously in opposite directions
         SpawnArmSweep(-1f, arenaMinX);
         SpawnArmSweep( 1f, arenaMaxX);
 
-        _anim.PlayBoomerang();                          // body-solo mientras brazos barren la sala
+        _anim.PlayBoomerang();                          // body-only while arms sweep the room
         yield return new WaitForSeconds(_anim.BoomerangDuration);
     }
 
-    // sweepY = -11.5f: Kael parado ocupa y=[-12,-10]; saltar ≥1.5u despeja el brazo.
+    // sweepY = -11.5f: standing Kael occupies y=[-12,-10]; jumping ≥1.5u clears the arm.
     private void SpawnArmSweep(float direction, float wallX)
     {
         var go = new GameObject("BossArmSweep");
@@ -506,6 +506,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
     }
 
     // ── IDamageable ───────────────────────────────────────────────────────────
+
 
     public void TakeDamage(int amount)
     {
@@ -528,7 +529,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         }
     }
 
-    // ── Transiciones de fase ──────────────────────────────────────────────────
+    // ── Phase transitions ─────────────────────────────────────────────────────
 
     private void CheckPhaseTransition()
     {
@@ -543,7 +544,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         {
             _phase = BossPhase.Phase3;
             OnPhaseChanged?.Invoke(_phase);
-            moveSpeed *= 1.5f;   // velocidad frenética en fase 3
+            moveSpeed *= 1.5f;   // frantic speed in phase 3
         }
     }
 
@@ -566,11 +567,11 @@ public class BossObsesion : MonoBehaviour, IDamageable
         }
         transform.position = origin;
 
-        moveSpeed *= 1.25f;   // velocidad aumenta con el buff
+        moveSpeed *= 1.25f;   // speed increases with the buff
         StartCoroutine(AttackLoop());
     }
 
-    // ── Secuencia de derrota: static sleep → el jugador mantiene E → flash + death + dash ─────
+    // ── Defeat sequence: static sleep → player holds E → flash + death + dash ──────────────────
 
     private IEnumerator DefeatedSequence()
     {
@@ -578,23 +579,23 @@ public class BossObsesion : MonoBehaviour, IDamageable
         _rb.velocity    = Vector2.zero;
         _rb.isKinematic = true;
 
-        OnBossDefeated?.Invoke();   // health bar desaparece inmediatamente
+        OnBossDefeated?.Invoke();   // health bar disappears immediately
 
-        // Cámara enfoca al boss en cuanto cae
+        // Camera focuses on the boss as it falls
         var camFollow       = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
         Transform origCamTarget = camFollow != null ? camFollow.target : null;
         if (camFollow != null) camFollow.target = transform;
 
-        // Música desaparece con fade suave
+        // Music fades out smoothly
         AudioManager.Instance?.FadeOutMusic(2f);
 
-        // Boss permanece en Idle — la animación de muerte se dispara al completar la extracción
+        // Boss stays in Idle — death animation fires when extraction is complete
         _anim.PlayIdle();
 
-        // Prompt en pantalla
+        // On-screen prompt
         var prompt = BuildExtractionPrompt();
 
-        // ── Esperar a que el jugador mantenga E con shake progresivo ─────────
+        // ── Wait for the player to hold E with progressive shake ──────────────
         const float HOLD_REQUIRED = 2f;
         const float INTERACT_DIST = 6f;
         float holdTimer = 0f;
@@ -612,7 +613,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
             else
                 holdTimer = Mathf.Max(0f, holdTimer - Time.deltaTime * 2f);
 
-            // Shake progresivo: intensidad y frecuencia aumentan con el progreso
+            // Progressive shake: intensity and frequency increase with progress
             if (cam != null && holdTimer > 0.1f)
             {
                 float progress  = holdTimer / HOLD_REQUIRED;
@@ -637,9 +638,9 @@ public class BossObsesion : MonoBehaviour, IDamageable
         if (cam != null) cam.transform.localPosition = camOrigin;
         if (prompt != null) UnityEngine.Object.Destroy(prompt);
 
-        // ── Al completar la extracción: boss y Kael mueren simultáneamente ────
+        // ── On extraction complete: boss and Kael die simultaneously ─────────
         StartCoroutine(ShakeCamera(0.5f, 0.28f));
-        _anim.PlayDeath();   // animación de muerte del boss
+        _anim.PlayDeath();   // boss death animation
 
         PlayerController pc  = _player != null ? _player.GetComponent<PlayerController>() : null;
         var kaelAnim         = _player != null ? _player.GetComponent<PlayerAnimator>()   : null;
@@ -647,40 +648,40 @@ public class BossObsesion : MonoBehaviour, IDamageable
 
         if (pc != null)     pc.enabled = false;
         if (kaelRb != null) { kaelRb.velocity = Vector2.zero; kaelRb.isKinematic = true; }
-        kaelAnim?.TriggerDie();   // Kael colapsa al absorber el fragmento
+        kaelAnim?.TriggerDie();   // Kael collapses while absorbing the fragment
 
-        yield return new WaitForSeconds(0.8f);   // deja que las animaciones arranquen
+        yield return new WaitForSeconds(0.8f);   // let animations start
 
-        // Fade out lento — pantalla se oscurece
+        // Slow fade out — screen darkens
         if (SceneFader.Instance != null)
             yield return SceneFader.Instance.FastFadeOutAsync(1.5f);
 
-        // ── En negro: otorgar dash y restablecer a Kael en Idle ──────────────
+        // ── In black: grant dash and reset Kael to Idle ───────────────────────
         if (pc != null) { pc.hasDash = true; pc.enabled = true; }
         if (kaelRb != null) { kaelRb.isKinematic = false; kaelRb.velocity = Vector2.zero; }
 
-        // Restaurar vidas completas tras derrotar al boss
+        // Restore full lives after defeating the boss
         CrystalRespawnManager.Instance?.RestoreLives();
 
-        // Volver a Idle para que Kael no aparezca atascado en el último frame de muerte
+        // Return to Idle so Kael doesn't appear stuck on the last death frame
         kaelAnim?.ResetToIdle();
 
-        // Restaurar cámara al jugador
+        // Restore camera to player
         if (camFollow != null) camFollow.target = origCamTarget;
 
-        // Desbloquear salidas de arena
+        // Unlock arena exits
         foreach (var ab in FindObjectsOfType<ArenaBarrier>(true))
             ab.gameObject.SetActive(false);
         IsArenaActive = false;
 
-        // Tutorial de dash arranca antes del fade-in
+        // Dash tutorial starts before fade-in
         if (SceneFader.Instance != null) SceneFader.Instance.StartDashTutorial();
 
-        // Fade in lento — Kael aparece en Idle, tutorial visible
+        // Slow fade in — Kael appears in Idle, tutorial visible
         if (SceneFader.Instance != null)
             yield return SceneFader.Instance.FastFadeInAsync(1.5f);
 
-        // Persistir derrota del boss — no reaparecerá al volver a MTN10
+        // Persist boss defeat — it won't respawn on returning to MTN10
         if (SaveManager.ActiveSlot >= 0 && SaveManager.Instance != null)
         {
             var data = SaveManager.Instance.Load(SaveManager.ActiveSlot);
@@ -709,7 +710,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         scaler.matchWidthOrHeight  = 0.5f;
         canvasGO.AddComponent<UnityEngine.UI.GraphicRaycaster>();
 
-        // Caja negra semitransparente en la parte inferior
+        // Semi-transparent black box at the bottom
         var boxGO  = new GameObject("PromptBox");
         boxGO.transform.SetParent(canvasGO.transform, false);
         var boxImg = boxGO.AddComponent<UnityEngine.UI.Image>();
@@ -721,7 +722,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         boxRt.anchoredPosition = new Vector2(0f, 60f);
         boxRt.sizeDelta        = new Vector2(780f, 110f);
 
-        // Texto encima de la caja
+        // Text above the box
         var textGO = new GameObject("PromptText");
         textGO.transform.SetParent(boxGO.transform, false);
         var tmp = textGO.AddComponent<TMPro.TextMeshProUGUI>();
@@ -791,7 +792,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         gameObject.SetActive(false);
     }
 
-    // ── Helpers de movimiento ─────────────────────────────────────────────────
+    // ── Movement helpers ──────────────────────────────────────────────────────
 
     private void FacePlayer()
     {
@@ -799,8 +800,8 @@ public class BossObsesion : MonoBehaviour, IDamageable
         float   dir = DirToPlayer();
         Vector3 s   = transform.localScale;
 
-        // Flip horizontal: escalar.x negativo = mirando izquierda
-        // Los hijos (hitboxes) se mueven automáticamente con el flip de escala
+        // Horizontal flip: negative scale.x = facing left
+        // Children (hitboxes) move automatically with the scale flip
         if (dir > 0f && s.x < 0f) transform.localScale = new Vector3(-s.x,  s.y, s.z);
         if (dir < 0f && s.x > 0f) transform.localScale = new Vector3(-s.x,  s.y, s.z);
     }
@@ -822,12 +823,12 @@ public class BossObsesion : MonoBehaviour, IDamageable
     {
         BossPhase.Phase1 => Random.Range(1.2f, 2.0f),
         BossPhase.Phase2 => Random.Range(0.6f, 1.2f),
-        _                => Random.Range(0.1f, 0.4f),   // Phase3: casi sin pausa
+        _                => Random.Range(0.1f, 0.4f),   // Phase3: almost no pause
     };
 
-    // ── Efectos de obsesión ───────────────────────────────────────────────────
+    // ── Obsession effects ─────────────────────────────────────────────────────
 
-    // Temblor escalado antes de ataques pesados — señal visual de carga
+    // Scaled shake before heavy attacks — visual charge signal
     private IEnumerator ObsessiveTwitch()
     {
         Vector3 origin   = transform.position;
@@ -847,21 +848,21 @@ public class BossObsesion : MonoBehaviour, IDamageable
     private IEnumerator DamageFlash()
     {
         _flashing = true;
-        // Tinte muy sutil al recibir daño — apenas perceptible, no distrae del sprite
+        // Very subtle tint on damage — barely noticeable, doesn't distract from the sprite
         _sr.color = _phase switch
         {
-            BossPhase.Phase2 => new Color(1f, 0.82f, 0.82f),   // rosa muy suave
-            BossPhase.Phase3 => new Color(1f, 0.78f, 0.78f),   // rosa ligeramente más pronunciado
-            _                => new Color(1f, 0.80f, 0.80f),   // fase 1: igual de sutil
+            BossPhase.Phase2 => new Color(1f, 0.82f, 0.82f),   // very soft pink
+            BossPhase.Phase3 => new Color(1f, 0.78f, 0.78f),   // slightly stronger pink
+            _                => new Color(1f, 0.80f, 0.80f),   // phase 1: equally subtle
         };
         yield return new WaitForSeconds(0.12f);
         _sr.color = Color.white;
         _flashing = false;
     }
 
-    // ── Proyectiles / hitboxes a distancia ───────────────────────────────────
+    // ── Projectiles / ranged hitboxes ─────────────────────────────────────────
 
-    // Posición del impacto ranged — delante del boss en espacio mundo (sin depender de scale).
+    // Ranged hit position — in front of the boss in world space (independent of scale).
     private Vector3 GetRangeSpawnPosition() =>
         rangeSpawnPoint != null
             ? rangeSpawnPoint.position
@@ -875,7 +876,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         if (proj != null) proj.Init(DirToPlayer(), projectileSprite, lifetimeOverride);
     }
 
-    // Daño instantáneo en la posición del range attack — usado por DoSuper.
+    // Instant damage at the range attack position — used by DoSuper.
     private void DamageAtRangePosition(int dmg)
     {
         if (CrystalRespawnManager.Instance == null) return;
@@ -892,7 +893,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
 
     private void SpawnBoomerang(System.Action onReturn = null)
     {
-        // +0.4u sobre los pies del boss → boomerang rasante cerca del suelo.
+        // +0.4u above the boss's feet → boomerang skims close to the floor.
         Vector3 pos = new Vector3(transform.position.x, transform.position.y + 0.4f, 0f);
 
         GameObject go;
@@ -918,15 +919,15 @@ public class BossObsesion : MonoBehaviour, IDamageable
 
     void OnDrawGizmosSelected()
     {
-        // Rango de detección
+        // Detection range
         Gizmos.color = new Color(1f, 0.5f, 0f, 0.35f);
         Gizmos.DrawWireSphere(transform.position, detectRange);
 
-        // Rango melee
+        // Melee range
         Gizmos.color = new Color(1f, 0.2f, 0.2f, 0.5f);
         Gizmos.DrawWireSphere(transform.position, meleeRange);
 
-        // Límites del arena
+        // Arena bounds
         Gizmos.color = new Color(0.2f, 0.8f, 1f, 0.6f);
         Gizmos.DrawLine(new Vector3(arenaMinX, -30f, 0), new Vector3(arenaMinX, 30f, 0));
         Gizmos.DrawLine(new Vector3(arenaMaxX, -30f, 0), new Vector3(arenaMaxX, 30f, 0));

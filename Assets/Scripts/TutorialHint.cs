@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-// Patrón Singleton DDOL — texto de pista grande en la parte inferior de la pantalla.
+// Pattern: Singleton DDOL — large hint text at the bottom of the screen.
 public class TutorialHint : MonoBehaviour
 {
     public static TutorialHint Instance { get; private set; }

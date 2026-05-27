@@ -13,8 +13,8 @@ public class SceneFader : MonoBehaviour
     private Image fadeImage;
     private bool _isFading;
 
-    // True mientras hay un fade en curso (transición o respawn local).
-    // Bloquea llamadas concurrentes a LoadScene para evitar doble-carga.
+    // True while a fade is in progress (scene transition or local respawn).
+    // Blocks concurrent LoadScene calls to prevent double-loading.
     public bool IsFading => _isFading;
 
     void Awake()
@@ -62,8 +62,8 @@ public class SceneFader : MonoBehaviour
         StartCoroutine(FadeAndLoad(sceneName));
     }
 
-    // Usar después de FadeOutAsync — pantalla ya en negro, no hace FadeOut de nuevo.
-    // SceneFader es DontDestroyOnLoad: la coroutine sobrevive al cambio de escena.
+    // Use after FadeOutAsync — screen is already black, skips a second FadeOut.
+    // SceneFader is DontDestroyOnLoad so the coroutine survives the scene change.
     public void LoadSceneAfterFade(string sceneName)
     {
         StartCoroutine(LoadAfterFadeRoutine(sceneName));
@@ -72,7 +72,7 @@ public class SceneFader : MonoBehaviour
     private IEnumerator LoadAfterFadeRoutine(string sceneName)
     {
         SceneManager.LoadScene(sceneName);
-        yield return null;   // esperar un frame para que Unity procese el cambio
+        yield return null;  // wait one frame for Unity to process the scene change
         yield return StartCoroutine(FadeIn());
         _isFading = false;
     }
@@ -86,8 +86,8 @@ public class SceneFader : MonoBehaviour
         _isFading = false;
     }
 
-    // Expuestos para respawn/hazard sin cambio de escena (CrystalRespawnManager).
-    // Marcan _isFading para que LoadScene no se dispare durante el respawn local.
+    // Exposed for respawn/hazard without scene change (CrystalRespawnManager).
+    // Set _isFading so LoadScene doesn't fire during local respawn.
     public Coroutine FadeOutAsync()
     {
         _isFading = true;
@@ -125,7 +125,7 @@ public class SceneFader : MonoBehaviour
         }
     }
 
-    // Tutorial de dash — persiste hasta que el jugador presione C
+    // Dash tutorial prompt — persists until the player presses C
     public void StartDashTutorial() => StartCoroutine(DashTutorialRoutine());
 
     private IEnumerator DashTutorialRoutine()
@@ -164,7 +164,6 @@ public class SceneFader : MonoBehaviour
         trt.anchoredPosition = new Vector2(0f, 88f);
         trt.sizeDelta        = new Vector2(620f, 60f);
 
-        // Parpadeo
         StartCoroutine(BlinkTMP(tmp));
 
         yield return new WaitForSeconds(0.6f);
@@ -186,7 +185,7 @@ public class SceneFader : MonoBehaviour
         }
     }
 
-    // Flash abrupto configurable — para eventos de juego sin cambio de escena
+    // Configurable abrupt flash — for in-game events without a scene change
     public Coroutine FastFadeOutAsync(float duration) => StartCoroutine(DoFastFadeOut(duration));
     public Coroutine FastFadeInAsync(float duration)  => StartCoroutine(DoFastFadeIn(duration));
 

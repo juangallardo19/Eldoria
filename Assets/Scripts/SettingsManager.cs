@@ -4,31 +4,31 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 
-/// Gestiona la pantalla de Opciones de Eldoria.
+/// Manages the Eldoria Options screen.
 ///
-/// Patrones aplicados:
-///   Observer   — Eventos estáticos notifican cambios a otros sistemas.
-///   State      — ShowPanel() es una máquina de 4 estados (pestaña activa).
+/// Applied patterns:
+///   Observer   — Static events notify other systems of changes.
+///   State      — ShowPanel() is a 4-state machine (active tab).
 public class SettingsManager : MonoBehaviour
 {
-    // ── Observer ──────────────────────────────────────────────────────────
+    // ── Observer events ───────────────────────────────────────────────────
     public static event System.Action<float> OnMusicVolumeChanged;
     public static event System.Action<float> OnSFXVolumeChanged;
     public static event System.Action<bool>  OnFullscreenChanged;
 
-    // ── Título dinámico ───────────────────────────────────────────────────
-    [Header("Título")]
+    // ── Dynamic title ─────────────────────────────────────────────────────
+    [Header("Title")]
     [SerializeField] private TMP_Text panelTitleLabel;
 
-    // ── Paneles principales ───────────────────────────────────────────────
-    [Header("Paneles")]
+    // ── Main panels ───────────────────────────────────────────────────────
+    [Header("Panels")]
     [SerializeField] private GameObject graficosPanel;
     [SerializeField] private GameObject sonidoPanel;
     [SerializeField] private GameObject controlesPanel;
     [SerializeField] private GameObject ajustesPanel;
 
-    // ── Botones de pestaña ────────────────────────────────────────────────
-    [Header("Pestañas")]
+    // ── Tab buttons ───────────────────────────────────────────────────────
+    [Header("Tabs")]
     [SerializeField] private Button graficosTabButton;
     [SerializeField] private Button sonidoTabButton;
     [SerializeField] private Button controlesTabButton;
@@ -36,42 +36,42 @@ public class SettingsManager : MonoBehaviour
     [SerializeField] private Sprite tabActiveSprite;
     [SerializeField] private Sprite tabNormalSprite;
 
-    // ── Gráficos — Pantalla ───────────────────────────────────────────────
-    [Header("Gráficos · Pantalla")]
+    // ── Graphics — Display ────────────────────────────────────────────────
+    [Header("Graphics · Display")]
     [SerializeField] private SelectionControl resolutionSelector;
-    [SerializeField] private SelectionControl screenModeSelector;   // Completa / Ventana / Sin bordes
-    [SerializeField] private SelectionControl fpsSelector;          // 30 / 60 / 120 / Sin límite
+    [SerializeField] private SelectionControl screenModeSelector;   // Fullscreen / Windowed / Borderless
+    [SerializeField] private SelectionControl fpsSelector;          // 30 / 60 / 120 / Unlimited
     [SerializeField] private Toggle           vsyncToggle;
     [SerializeField] private SelectionControl qualitySelector;
 
-    // ── Gráficos — Visual ─────────────────────────────────────────────────
-    [Header("Gráficos · Visual")]
+    // ── Graphics — Visual ─────────────────────────────────────────────────
+    [Header("Graphics · Visual")]
     [SerializeField] private Slider brightnessSlider;
     [SerializeField] private Slider contrastSlider;
     [SerializeField] private Slider saturationSlider;
 
-    // ── Gráficos — Accesibilidad Visual ───────────────────────────────────
-    [Header("Gráficos · Accesibilidad")]
+    // ── Graphics — Visual Accessibility ──────────────────────────────────
+    [Header("Graphics · Accessibility")]
     [SerializeField] private Toggle           colorBlindToggle;
-    [SerializeField] private GameObject       colorBlindOptionsGroup; // se muestra solo si toggle ON
+    [SerializeField] private GameObject       colorBlindOptionsGroup; // shown only when toggle is ON
     [SerializeField] private SelectionControl colorBlindTypeSelector;  // Protanopia / Deuteranopia / Tritanopia
     [SerializeField] private Slider           colorBlindIntensitySlider;
 
-    // ── Sonido ────────────────────────────────────────────────────────────
-    [Header("Sonido")]
+    // ── Audio ─────────────────────────────────────────────────────────────
+    [Header("Audio")]
     [SerializeField] private Slider masterVolumeSlider;
     [SerializeField] private Slider musicSlider;
     [SerializeField] private Slider sfxSlider;
     [SerializeField] private Slider voicesSlider;
     [SerializeField] private Slider uiSlider;
 
-    // ── Ajustes generales ─────────────────────────────────────────────────
-    [Header("Ajustes generales")]
+    // ── General settings ──────────────────────────────────────────────────
+    [Header("General settings")]
     [SerializeField] private SelectionControl languageSelector;
     [SerializeField] private Toggle           showFpsToggle;
 
-    // ── Navegación ────────────────────────────────────────────────────────
-    [Header("Navegación")]
+    // ── Navigation ────────────────────────────────────────────────────────
+    [Header("Navigation")]
     [SerializeField] private Button backButton;
 
     // ── PlayerPrefs keys ──────────────────────────────────────────────────
@@ -102,7 +102,7 @@ public class SettingsManager : MonoBehaviour
         FullScreenMode.Windowed
     };
 
-    // Resoluciones fijas: solo las tres que usa el juego
+    // Fixed resolutions: only the three used by the game
     private static readonly (int w, int h)[] FixedResolutions =
     {
         (1920, 1080),
@@ -115,7 +115,7 @@ public class SettingsManager : MonoBehaviour
     private int  _currentTabIndex;
     private bool _initialized;
 
-    // ── Observer: idioma ──────────────────────────────────────────────────
+    // ── Observer: language ────────────────────────────────────────────────
     void OnEnable()  => LocalizationManager.OnLanguageChanged += OnLanguageChanged;
     void OnDisable() => LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
 
@@ -176,10 +176,10 @@ public class SettingsManager : MonoBehaviour
         _initialized = true;
     }
 
-    // ── Gráficos ──────────────────────────────────────────────────────────
+    // ── Graphics ──────────────────────────────────────────────────────────
     private void SetupGraficos()
     {
-        // Resolución — lista fija de tres opciones
+        // Resolution — fixed list of three options
         if (resolutionSelector != null)
         {
             resolutionSelector.SetOptions(new List<string>
@@ -193,7 +193,7 @@ public class SettingsManager : MonoBehaviour
             };
         }
 
-        // Modo de pantalla: Pantalla completa / Sin bordes / Ventana
+        // Screen mode: Fullscreen / Borderless / Windowed
         if (screenModeSelector != null)
         {
             screenModeSelector.SetOptions(new List<string>
@@ -211,12 +211,12 @@ public class SettingsManager : MonoBehaviour
             };
         }
 
-        // FPS: 30 / 60 / 120 / 144 / Sin límite
+        // FPS: 30 / 60 / 120 / 144 / Unlimited
         if (fpsSelector != null)
         {
             fpsSelector.SetOptions(new List<string>
                 { "30", "60", "120", "144", LocalizationManager.Get("Sin límite") });
-            int savedFps = PlayerPrefs.GetInt(K_FPS, 4); // Sin límite por defecto (índice 4)
+            int savedFps = PlayerPrefs.GetInt(K_FPS, 4); // Unlimited by default (index 4)
             fpsSelector.value = savedFps;
             Application.targetFrameRate = FpsValues[Mathf.Clamp(savedFps, 0, FpsValues.Length - 1)];
             fpsSelector.onValueChanged += idx =>
@@ -226,7 +226,7 @@ public class SettingsManager : MonoBehaviour
             };
         }
 
-        // VSync
+        // VSync toggle
         if (vsyncToggle != null)
         {
             vsyncToggle.isOn = PlayerPrefs.GetInt(K_VSYNC, 0) == 1;
@@ -238,7 +238,7 @@ public class SettingsManager : MonoBehaviour
             });
         }
 
-        // Calidad
+        // Quality preset
         if (qualitySelector != null)
         {
             qualitySelector.SetOptions(new List<string>
@@ -256,14 +256,14 @@ public class SettingsManager : MonoBehaviour
             };
         }
 
-        // Visual — Brillo / Contraste / Saturación
+        // Visual — Brightness / Contrast / Saturation
         ScreenEffectsManager.EnsureExists();
         SetupVisualSlider(brightnessSlider,  K_BRIGHTNESS,  0.5f);
         SetupVisualSlider(contrastSlider,    K_CONTRAST,    0.5f);
         SetupVisualSlider(saturationSlider,  K_SATURATION,  0.5f);
         ApplyVisualEffects();
 
-        // Accesibilidad — Daltonismo
+        // Accessibility — Color blindness
         bool cbActive = PlayerPrefs.GetInt(K_COLOR_BLIND, 0) == 1;
         if (colorBlindOptionsGroup != null) colorBlindOptionsGroup.SetActive(cbActive);
 
@@ -312,12 +312,12 @@ public class SettingsManager : MonoBehaviour
         ScreenEffectsManager.Apply(b, c, s);
     }
 
-    // ── Sonido ────────────────────────────────────────────────────────────
+    // ── Audio ─────────────────────────────────────────────────────────────
     private void SetupSonido()
     {
         SetupVolumeSlider(masterVolumeSlider, K_MASTER_VOL, 1f, vol =>
         {
-            // Lee el slider en memoria, no PlayerPrefs — evita que AudioManager contamine esa clave
+            // Read slider value from memory, not PlayerPrefs — avoids AudioManager contaminating these keys
             float m = musicSlider != null ? musicSlider.value : GetPref(K_MUSIC_VOL, 1f);
             float s = sfxSlider   != null ? sfxSlider.value   : GetPref(K_SFX_VOL,   1f);
             AudioManager.Instance?.SetMusicVolume(vol * m);
@@ -348,7 +348,7 @@ public class SettingsManager : MonoBehaviour
         s.onValueChanged.AddListener(v => { PlayerPrefs.SetFloat(key, v); onChange(v); });
     }
 
-    // ── Ajustes generales ─────────────────────────────────────────────────
+    // ── General settings ──────────────────────────────────────────────────
     private void SetupAjustes()
     {
         if (languageSelector != null)
@@ -371,7 +371,7 @@ public class SettingsManager : MonoBehaviour
         }
     }
 
-    // ── State Machine: pestañas ───────────────────────────────────────────
+    // ── State Machine: tabs ───────────────────────────────────────────────
     private void SetupTabs()
     {
         graficosTabButton ?.onClick.AddListener(() => ShowPanel(graficosPanel,  graficosTabButton,  0));
@@ -404,16 +404,16 @@ public class SettingsManager : MonoBehaviour
         btn.image.sprite = isActive ? tabActiveSprite : tabNormalSprite;
     }
 
-    // ── Navegación ────────────────────────────────────────────────────────
+    // ── Navigation ────────────────────────────────────────────────────────
     private void SetupNavigation()
     {
         backButton?.onClick.AddListener(() =>
         {
             PlayerPrefs.Save();
-            // Si venimos de una pausa en juego, volvemos a esa escena
+            // If coming from an in-game pause, return to that scene
             string target = !string.IsNullOrEmpty(PauseMenuManager.ReturnScene)
                 ? PauseMenuManager.ReturnScene
-                : "MainMenu";
+                : EldoriaSceneNames.MainMenu;
             PauseMenuManager.ReturnScene = null;
             if (SceneFader.Instance != null)
                 SceneFader.Instance.LoadScene(target);

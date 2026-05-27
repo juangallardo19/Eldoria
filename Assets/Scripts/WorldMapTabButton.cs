@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-// Adjuntado a los botones de tab del mapa. Se autocablea al WorldMapController en Start.
+// Attached to map tab buttons. Self-wires to WorldMapController in Start.
 [RequireComponent(typeof(Button))]
 public class WorldMapTabButton : MonoBehaviour
 {

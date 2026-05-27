@@ -2,18 +2,18 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// Singleton DontDestroyOnLoad que gestiona dónde aparece el jugador al cambiar de escena.
+// Singleton DontDestroyOnLoad that manages where the player appears after a scene change.
 //
-// Flujo:
-//   1. SceneBoundary (o DoorExit) escribe PlayerSpawnManager.NextSpawnId = "left" / "right" / "door_HV04" etc.
-//   2. La escena carga.
-//   3. OnSceneLoaded busca el SpawnPoint con ese ID y teletransporta al Player ahí.
-//   4. NextSpawnId se resetea a "default" para la próxima transición.
+// Flow:
+//   1. SceneBoundary (or DoorExit) writes PlayerSpawnManager.NextSpawnId = "left" / "right" / "door_HV04" etc.
+//   2. The scene loads.
+//   3. OnSceneLoaded finds the SpawnPoint with that ID and teleports the player there.
+//   4. NextSpawnId resets to "default" for the next transition.
 public class PlayerSpawnManager : MonoBehaviour
 {
     public static PlayerSpawnManager Instance { get; private set; }
 
-    // Garantiza que siempre exista un PSM, incluso si la escena no tiene uno.
+    // Ensures a PSM always exists, even if the scene doesn't have one.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void Bootstrap()
     {
@@ -22,15 +22,15 @@ public class PlayerSpawnManager : MonoBehaviour
         go.AddComponent<PlayerSpawnManager>();
     }
 
-    // Escribir antes de cargar la escena destino para controlar dónde aparece el jugador.
+    // Write before loading the target scene to control where the player appears.
     public static string NextSpawnId = "default";
 
-    // Estado de correr guardado al cruzar SceneBoundary; se restaura al jugador nuevo.
+    // Running state saved when crossing a SceneBoundary; restored to the new player instance.
     public static bool SavedRunningMode = false;
 
-    // Santuario: posición de reaparición sin necesitar un SpawnPoint en escena.
-    public static bool    UsePositionOverride    = false;
-    public static Vector2 OverridePositionValue  = Vector2.zero;
+    // Sanctuary: spawn position without needing a SpawnPoint in the scene.
+    public static bool    UsePositionOverride   = false;
+    public static Vector2 OverridePositionValue = Vector2.zero;
 
     private bool _isFirstInstance;
     // sceneLoaded fires before Start(); this flag lets Start() skip PlacePlayer
@@ -68,11 +68,11 @@ public class PlayerSpawnManager : MonoBehaviour
 
     IEnumerator PlacePlayer()
     {
-        // Esperar un frame para que todos los Awake() terminen
+        // Wait one frame for all Awake() calls to complete
         yield return null;
 
         var player = GameObject.FindGameObjectWithTag("Player");
-        // Fallback: si no tiene tag "Player", buscar por componente
+        // Fallback: if no "Player" tag, search by component
         if (player == null)
         {
             var pc = FindObjectOfType<PlayerController>();
@@ -80,21 +80,21 @@ public class PlayerSpawnManager : MonoBehaviour
         }
         if (player == null) { NextSpawnId = "default"; yield break; }
 
-        // Override de posición (usado por respawn en santuario de Ara)
+        // Position override (used by Ara sanctuary respawn)
         if (UsePositionOverride)
         {
             var rbO = player.GetComponent<Rigidbody2D>();
             if (rbO != null) rbO.velocity = Vector2.zero;
             player.transform.position = OverridePositionValue;
-            UsePositionOverride   = false;
-            NextSpawnId           = "default";
+            UsePositionOverride = false;
+            NextSpawnId         = "default";
             yield break;
         }
 
         SpawnPoint target = FindSpawnPoint(NextSpawnId);
 
-        // Fallback a "default" SOLO si el ID pedido era "default" (no caer al centro
-        // cuando el ID es específico y el SpawnPoint simplemente no existe en la escena).
+        // Fall back to "default" ONLY if the requested ID was already "default"
+        // (avoids snapping to center when a specific ID simply doesn't exist in the scene).
         if (target == null && NextSpawnId == "default")
             target = FindSpawnPoint("default");
 

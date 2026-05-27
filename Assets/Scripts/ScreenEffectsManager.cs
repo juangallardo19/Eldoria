@@ -1,10 +1,10 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// Singleton DontDestroyOnLoad — gestiona los efectos de color de pantalla (brillo/contraste/saturación).
-// Patrón: Singleton (instancia global persistente) + Observer (reacciona a sceneLoaded para
-//         adjuntar ScreenColorEffect al Main Camera de cada escena).
-// Patrón: Facade — expone Apply() como única API; oculta la gestión del Material y la Camera.
+// Singleton DontDestroyOnLoad — manages screen colour effects (brightness/contrast/saturation).
+// Patterns: Singleton (global persistent instance) + Observer (reacts to sceneLoaded to attach
+//           ScreenColorEffect to the Main Camera of each scene).
+//           Facade — exposes Apply() as the sole API; hides Material and Camera management.
 public class ScreenEffectsManager : MonoBehaviour
 {
     public static ScreenEffectsManager Instance { get; private set; }
@@ -29,15 +29,14 @@ public class ScreenEffectsManager : MonoBehaviour
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode) => AttachToCamera();
 
-    // ── API pública ────────────────────────────────────────────────────────
-    // Valores de slider Unity (0-1). 0.5 = neutro.
+    // ── Public API ────────────────────────────────────────────────────────
+    // Unity slider values (0–1). 0.5 = neutral.
     public static void Apply(float brightness, float contrast, float saturation)
     {
         Instance?.ApplyValues(brightness, contrast, saturation);
     }
 
-    // Se llama desde SettingsManager para garantizar que el manager exista
-    // antes de que el jugador cambie un slider.
+    // Called from SettingsManager to ensure the manager exists before the player moves a slider.
     public static void EnsureExists()
     {
         if (Instance != null) return;
@@ -45,7 +44,7 @@ public class ScreenEffectsManager : MonoBehaviour
         go.AddComponent<ScreenEffectsManager>();
     }
 
-    // ── Privados ───────────────────────────────────────────────────────────
+    // ── Private ───────────────────────────────────────────────────────────
     void AttachToCamera()
     {
         var cam = Camera.main;
@@ -59,18 +58,18 @@ public class ScreenEffectsManager : MonoBehaviour
 
     void ApplyFromPrefs()
     {
-        float b = PlayerPrefs.GetFloat("Brightness", 0.5f);
-        float c = PlayerPrefs.GetFloat("Contrast",   0.5f);
-        float s = PlayerPrefs.GetFloat("Saturation", 0.5f);
+        float b = PlayerPrefs.GetFloat(EldoriaPrefsKeys.Brightness, 0.5f);
+        float c = PlayerPrefs.GetFloat(EldoriaPrefsKeys.Contrast,   0.5f);
+        float s = PlayerPrefs.GetFloat(EldoriaPrefsKeys.Saturation, 0.5f);
         ApplyValues(b, c, s);
     }
 
     void ApplyValues(float b, float c, float s)
     {
         if (_effect == null) return;
-        // Mapeo slider (0-1) → shader: 0.5 = neutro → 0; rango ±0.5 para brillo/contraste
+        // Slider (0-1) → shader mapping: 0.5 = neutral → 0; ±0.5 range for brightness/contrast
         _effect.brightness = b - 0.5f;
         _effect.contrast   = c - 0.5f;
-        _effect.saturation = (s - 0.5f) * 2f;   // rango más amplio para saturación
+        _effect.saturation = (s - 0.5f) * 2f;   // wider range for saturation
     }
 }

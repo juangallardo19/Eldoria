@@ -2,18 +2,18 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
 
-// Zona de salida en puerta. Muestra etiqueta flotante al acercarse el Player.
-// Patrón: Command — la acción "cambiar de sala" es encapsulada y solo se ejecuta
-//          cuando el jugador está en la zona Y presiona la tecla de Interacción.
+// Exit zone at a door. Shows a floating label when the Player approaches.
+// Pattern: Command — the "change room" action is encapsulated and only executed
+//          when the player is in the zone AND presses the Interact key.
 [RequireComponent(typeof(BoxCollider2D))]
 public class DoorExit : MonoBehaviour
 {
-    [Header("Destino")]
+    [Header("Destination")]
     [SerializeField] private string targetScene = "HV01_Exterior";
-    [SerializeField] private string spawnId     = "";   // ID del SpawnPoint en la escena destino
+    [SerializeField] private string spawnId     = "";   // SpawnPoint ID in the destination scene
 
-    [Header("Label flotante")]
-    [SerializeField] private string labelText      = "[ E ]  SALIR";
+    [Header("Floating label")]
+    [SerializeField] private string labelText       = "[ E ]  SALIR";
     [SerializeField] private Transform labelTransform;
     [SerializeField] private TMP_FontAsset labelFont;
     [SerializeField] private float bobAmplitude = 0.25f;
@@ -32,7 +32,7 @@ public class DoorExit : MonoBehaviour
 
         if (labelTransform != null)
         {
-            // Usa posición WORLD para que el bobbing no dependa de la escala del padre
+            // Use WORLD position so bobbing is independent of parent scale
             _labelBaseY = labelTransform.position.y;
             labelTransform.gameObject.SetActive(false);
         }
@@ -42,7 +42,7 @@ public class DoorExit : MonoBehaviour
     {
         if (!_playerNear) return;
 
-        // Bobbing sinusoidal en espacio WORLD (sin dependencia de escala del padre)
+        // Sinusoidal bob in WORLD space (no parent scale dependency)
         if (labelTransform != null)
         {
             float baseWorldY = transform.position.y + 3.5f;
@@ -56,7 +56,7 @@ public class DoorExit : MonoBehaviour
             Exit();
     }
 
-    // ── Detección de jugador ──────────────────────────────────────────────────
+    // ── Player detection ──────────────────────────────────────────────────────
     void OnTriggerEnter2D(Collider2D other)
     {
         if (!other.CompareTag("Player")) return;
@@ -71,7 +71,7 @@ public class DoorExit : MonoBehaviour
         if (labelTransform != null) labelTransform.gameObject.SetActive(false);
     }
 
-    // ── Transición de sala ────────────────────────────────────────────────────
+    // ── Room transition ───────────────────────────────────────────────────────
     private void Exit()
     {
         if (string.IsNullOrEmpty(targetScene)) return;
@@ -85,14 +85,14 @@ public class DoorExit : MonoBehaviour
             SceneManager.LoadScene(targetScene);
     }
 
-    // ── Crear label en runtime si no fue asignado desde el editor ────────────
-    // Usa un Canvas WorldSpace + TextMeshProUGUI para garantizar visibilidad
-    // independientemente del sorting layer de los SpriteRenderers.
+    // ── Build label at runtime when none was assigned from the editor ─────────
+    // Uses a WorldSpace Canvas + TextMeshProUGUI to ensure visibility
+    // regardless of SpriteRenderer sorting layers.
     private Transform BuildLabel()
     {
         var canvasGO = new GameObject("_DoorLabel");
-        // Sin parent: evita heredar la escala del DoorExit trigger.
-        // La posición se actualiza en Update() con transform.position del padre.
+        // No parent: avoids inheriting DoorExit trigger scale.
+        // Position is updated each Update() from the parent's transform.position.
         canvasGO.transform.position   = transform.position + new Vector3(0f, 3.5f, 0f);
         canvasGO.transform.localScale = new Vector3(0.02f, 0.02f, 1f);
 

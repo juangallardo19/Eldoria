@@ -1,13 +1,13 @@
 using UnityEngine;
 
-// Patrón Command — zona de cristales que delega el respawn en CrystalRespawnManager.
-// Usa PolygonCollider2D para que el diseñador pueda moldear la forma en Scene View
-// (igual que el techo EdgeCollider2D). Genera automáticamente un glow radial muy sutil
-// (más intenso en el centro, transparente en los bordes) para señalizar la zona.
+// Pattern: Command — crystal hazard zone that delegates respawn to CrystalRespawnManager.
+// Uses PolygonCollider2D so designers can shape it in Scene View (same as the EdgeCollider2D ceiling).
+// Automatically generates a subtle radial glow (more intense at centre, transparent at edges)
+// to visually mark the hazard zone.
 [RequireComponent(typeof(PolygonCollider2D))]
 public class CrystalHazard : MonoBehaviour
 {
-    [Header("Glow — color base (alpha muy bajo recomendado)")]
+    [Header("Glow — base colour (very low alpha recommended)")]
     [SerializeField] private Color glowColor      = new Color(1f, 0.45f, 0.1f, 0.18f);
     [SerializeField] private float glowAlphaMin   = 0.04f;
     [SerializeField] private float glowAlphaMax   = 0.18f;
@@ -21,7 +21,7 @@ public class CrystalHazard : MonoBehaviour
         var poly = GetComponent<PolygonCollider2D>();
         poly.isTrigger = true;
 
-        // Inicializa con un rectángulo si el polígono está vacío (recién añadido)
+        // Initialise with a default rectangle if the polygon is empty (freshly added)
         if (poly.pathCount == 0 || poly.GetPath(0).Length == 0)
         {
             poly.SetPath(0, new Vector2[]
@@ -45,7 +45,7 @@ public class CrystalHazard : MonoBehaviour
         _glowSR.color = c;
     }
 
-    // Construye una textura de gradiente radial: opaco en el centro, transparente en los bordes.
+    // Builds a radial gradient texture: opaque at centre, transparent at edges.
     private void BuildGlowOverlay(PolygonCollider2D poly)
     {
         const int res  = 128;
@@ -59,20 +59,20 @@ public class CrystalHazard : MonoBehaviour
         {
             for (int x = 0; x < res; x++)
             {
-                float dx   = (x - hr) / hr;            // -1..1 en X
-                float dy   = (y - hr) / hr;            // -1..1 en Y
-                float dist = Mathf.Sqrt(dx * dx + dy * dy); // 0 = centro, 1 = borde
+                float dx   = (x - hr) / hr;            // -1..1 on X
+                float dy   = (y - hr) / hr;            // -1..1 on Y
+                float dist = Mathf.Sqrt(dx * dx + dy * dy); // 0 = centre, 1 = edge
                 float a    = Mathf.Clamp01(1f - dist);
-                a = a * a * a;                         // cúbico: cae rápido → centro muy concentrado
+                a = a * a * a;                         // cubic: drops fast → highly concentrated at centre
                 tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
             }
         }
         tex.Apply();
 
-        // PPU = res → sprite de 1×1 unidad; localScale ajusta al tamaño real de la zona
+        // PPU = res → 1×1 unit sprite; localScale scales it to the zone's actual size
         var spr = Sprite.Create(tex, new Rect(0, 0, res, res), Vector2.one * 0.5f, res);
 
-        // Tamaño y centro basados en el AABB del polígono (espacio local)
+        // Size and centre derived from the polygon's AABB (local space)
         var bounds = poly.bounds;                                    // world-space
         var localCenter = transform.InverseTransformPoint(bounds.center);
 

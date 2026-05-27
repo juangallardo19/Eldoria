@@ -1,19 +1,19 @@
 using UnityEngine;
 
-// Patrón: Command
-// Proyectil animado lanzado por SombraMago.
-// Los frames (atack sombraprime1-6) muestran el proyectil expandiéndose en vuelo.
-// Viaja en línea recta; destruye al tocar al jugador o después de maxLifetime.
-// Ignora colisiones con otros enemigos Sombra para no bloquearse entre sí.
+// Pattern: Command
+// Animated projectile launched by SombraMago.
+// Frames (atack sombraprime1-6) show the projectile expanding in flight.
+// Travels in a straight line; destroys itself on player contact or after maxLifetime.
+// Ignores collisions with other Sombra enemies so they don't block each other.
 [RequireComponent(typeof(SpriteRenderer))]
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(CircleCollider2D))]
 public class SombraProyectil : MonoBehaviour
 {
-    [Header("Animación (asignado por SetupSombraMago)")]
+    [Header("Animation frames (assigned by SetupSombraMago)")]
     public Sprite[] frames;
 
-    [Header("Comportamiento")]
+    [Header("Behaviour")]
     [SerializeField] private float fps         = 10f;
     [SerializeField] private float speed       = 7f;
     [SerializeField] private float maxLifetime = 3f;
@@ -39,14 +39,14 @@ public class SombraProyectil : MonoBehaviour
         Destroy(gameObject, maxLifetime);
     }
 
-    // Llamado por SombraMago justo después de Instantiate.
+    // Called by SombraMago immediately after Instantiate.
     public void Launch(Vector2 direction, int dmg)
     {
         damage       = dmg;
         _rb.velocity = direction.normalized * speed;
         _sr.flipX    = direction.x < 0f;
 
-        // Primer frame visible inmediatamente
+        // Show first frame immediately
         if (frames != null && frames.Length > 0 && frames[0] != null)
             _sr.sprite = frames[0];
     }
@@ -70,7 +70,7 @@ public class SombraProyectil : MonoBehaviour
     {
         if (_hit) return;
 
-        // No interactuar con otros enemigos sombra
+        // Do not interact with other Sombra enemies
         if (other.GetComponent<SombraMago>()  != null) return;
         if (other.GetComponent<SombraNinja>() != null) return;
 

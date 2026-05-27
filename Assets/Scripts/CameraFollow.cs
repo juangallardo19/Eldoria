@@ -1,58 +1,58 @@
 using UnityEngine;
 
-// Tres modos de cámara 2D para salas de Metroidvania.
-// Patrón: Strategy — el comportamiento de cámara se selecciona con un enum;
-//          el algoritmo activo puede cambiarse en runtime (ej: cutscenes).
+// Three 2D camera modes for Metroidvania rooms.
+// Pattern: Strategy — camera behavior is selected with an enum;
+//          the active algorithm can be swapped at runtime (e.g., cutscenes).
 [RequireComponent(typeof(Camera))]
 public class CameraFollow : MonoBehaviour
 {
     public enum CameraMode
     {
-        FitRoom,        // Estática: ajusta orthoSize al fondo y centra. Ideal para HUB-01.
-        FollowClamped,  // Sigue al jugador pero no sale del área del fondo.
-        FreeFollow,     // Sigue al jugador sin restricciones (debug / salas infinitas).
-        FollowBounded   // Sigue al jugador clampeando a límites explícitos (boundsMin/Max).
+        FitRoom,        // Static: fits orthoSize to background and centers. Ideal for HV01_Interior.
+        FollowClamped,  // Follows the player but stays within the background bounds.
+        FreeFollow,     // Follows the player with no constraints (debug / infinite rooms).
+        FollowBounded   // Follows the player clamped to explicit boundsMin/Max.
     }
 
-    [Header("Modo")]
+    [Header("Mode")]
     public CameraMode mode = CameraMode.FitRoom;
 
-    [Header("Fondo de la sala (asignar Background SR)")]
+    [Header("Room background (assign Background SR)")]
     public SpriteRenderer roomBackground;
 
-    [Header("Jugador (solo si modo ≠ FitRoom)")]
+    [Header("Player (only if mode != FitRoom)")]
     public Transform target;
 
-    [Header("Límites manuales (solo FollowBounded — ignorados si hay CameraBoundsZone en la escena)")]
+    [Header("Manual bounds (FollowBounded only — ignored when a CameraBoundsZone exists in the scene)")]
     public Vector2 boundsMin = new Vector2(-30f, -12f);
     public Vector2 boundsMax = new Vector2( 30f,   8f);
 
-    // Zona activa: se asigna en Start (escena con una sola zona) o en runtime cuando el jugador
-    // entra en un CameraBoundsZone (escenas con múltiples zonas para salas irregulares).
+    // Active zone: assigned in Start (single-zone scenes) or at runtime when the player
+    // enters a CameraBoundsZone (multi-zone scenes for irregular rooms).
     private CameraBoundsZone _boundsZone;
     public  CameraBoundsZone ActiveBoundsZone => _boundsZone;
 
-    // Límites escalonados: alternativa a CameraBoundsZone para techos irregulares.
-    // Prioridad: SteppedCameraBounds > CameraBoundsZone > boundsMin/Max manual.
+    // Stepped bounds: alternative to CameraBoundsZone for irregular ceilings.
+    // Priority: SteppedCameraBounds > CameraBoundsZone > boundsMin/Max manual.
     private SteppedCameraBounds _steppedBounds;
 
-    // Llamado por CameraBoundsZone cuando el jugador entra/sale de una zona.
+    // Called by CameraBoundsZone when the player enters/exits a zone.
     public void SetActiveBoundsZone(CameraBoundsZone zone) => _boundsZone = zone;
 
-    [Header("Offset del objetivo (solo modo Follow)")]
-    [Tooltip("Desplaza el punto que sigue la cámara. Y>0 = Kael aparece más abajo en pantalla.")]
+    [Header("Target offset (Follow modes only)")]
+    [Tooltip("Shifts the point the camera follows. Y>0 = Kael appears lower on screen.")]
     public Vector2 targetOffset = new Vector2(0f, 3f);
 
-    [Header("Tamaño de cámara")]
-    [Tooltip("Si > 0, fuerza este tamaño al iniciar el juego (útil en FollowBounded). " +
-             "Déjalo en 0 para usar el valor del componente Camera sin tocarlo.")]
+    [Header("Camera size")]
+    [Tooltip("If > 0, forces this size at game start (useful in FollowBounded). " +
+             "Leave at 0 to use the Camera component value unchanged.")]
     [SerializeField] private float manualOrthoSize = 0f;
 
-    [Tooltip("Solo FitRoom: si está activo, calcula el orthographicSize para encajar el fondo " +
-             "exacto (ignora manualOrthoSize). Desactívalo para respetar el tamaño manual.")]
+    [Tooltip("FitRoom only: when enabled, calculates orthographicSize to fit the background exactly " +
+             "(overrides manualOrthoSize). Disable to respect the manual size.")]
     [SerializeField] private bool autoFitOrthoSize = true;
 
-    [Header("Suavizado (solo modo Follow)")]
+    [Header("Smoothing (Follow modes only)")]
     [SerializeField] private float smoothTime = 0.18f;
 
     private Camera _cam;
@@ -63,18 +63,18 @@ public class CameraFollow : MonoBehaviour
 
     void Start()
     {
-        // Auto-asignar target si no está asignado en el inspector
+        // Auto-assign target if not set in the Inspector
         if (target == null)
         {
             var p = GameObject.FindGameObjectWithTag("Player");
             if (p != null) target = p.transform;
         }
 
-        // Detectar SteppedCameraBounds primero; si no existe, buscar CameraBoundsZone
+        // Detect SteppedCameraBounds first; fall back to CameraBoundsZone if absent
         _steppedBounds = FindObjectOfType<SteppedCameraBounds>();
         _boundsZone    = FindObjectOfType<CameraBoundsZone>();
 
-        // Aplicar tamaño manual antes de FitToRoom (FitRoom+autoFit puede sobreescribirlo)
+        // Apply manual size before FitToRoom (FitRoom+autoFit may override it)
         if (manualOrthoSize > 0f)
             _cam.orthographicSize = manualOrthoSize;
 
@@ -87,7 +87,7 @@ public class CameraFollow : MonoBehaviour
         switch (mode)
         {
             case CameraMode.FitRoom:
-                // Cámara estática: no hace nada en LateUpdate
+                // Static camera: nothing to do in LateUpdate
                 break;
 
             case CameraMode.FollowClamped:
@@ -105,13 +105,13 @@ public class CameraFollow : MonoBehaviour
     }
 
     // ── FitRoom ───────────────────────────────────────────────────────────────
-    // Calcula el orthographicSize exacto para que el fondo ocupe 100% de pantalla,
-    // luego centra la cámara. Se ejecuta una vez en Start.
+    // Calculates the exact orthographicSize to fill the screen with the background,
+    // then centers the camera. Runs once in Start.
     private void FitToRoom()
     {
         if (roomBackground == null)
         {
-            Debug.LogWarning("[CameraFollow] roomBackground no asignado — cámara sin cambios.");
+            Debug.LogWarning("[CameraFollow] roomBackground not assigned — camera unchanged.");
             return;
         }
 
@@ -119,24 +119,23 @@ public class CameraFollow : MonoBehaviour
 
         if (autoFitOrthoSize)
         {
-            // Ajustar altura: orthoSize = mitad del alto del sprite
+            // Fit height: orthoSize = half sprite height
             _cam.orthographicSize = bounds.size.y / 2f;
 
-            // Ajustar si el aspect ratio deja barras negras laterales
+            // Expand if aspect ratio would produce black bars on the sides
             float neededOrthoForWidth = (bounds.size.x / 2f) / _cam.aspect;
             if (neededOrthoForWidth > _cam.orthographicSize)
                 _cam.orthographicSize = neededOrthoForWidth;
         }
 
-        // Centrar en el sprite
+        // Center on the sprite
         Vector3 center = bounds.center;
         center.z = transform.position.z;
         transform.position = center;
-
     }
 
     // ── FollowClamped ─────────────────────────────────────────────────────────
-    // Sigue al jugador pero impide que la cámara muestre fuera del fondo.
+    // Follows the player but prevents the camera from showing outside the background.
     private void FollowClamped()
     {
         if (target == null) return;
@@ -166,8 +165,8 @@ public class CameraFollow : MonoBehaviour
     }
 
     // ── FollowBounded ─────────────────────────────────────────────────────────
-    // Sigue al jugador pero clampa a los límites de la sala.
-    // Prioridad: SteppedCameraBounds > CameraBoundsZone > boundsMin/Max manual.
+    // Follows the player clamped to the room bounds.
+    // Priority: SteppedCameraBounds > CameraBoundsZone > boundsMin/Max manual.
     private void FollowBounded()
     {
         if (target == null) return;
@@ -179,7 +178,7 @@ public class CameraFollow : MonoBehaviour
 
         if (_steppedBounds != null)
         {
-            // Límites de Y dinámicos según la X actual del jugador
+            // Dynamic Y bounds based on the player's current X position
             Vector2 yb = _steppedBounds.GetYBoundsAtX(target.position.x);
             xMin = _steppedBounds.XMin;
             xMax = _steppedBounds.XMax;
@@ -215,7 +214,7 @@ public class CameraFollow : MonoBehaviour
             transform.position, desired, ref _velocity, smoothTime);
     }
 
-    // ── API pública (para cambiar modo en runtime, ej: cutscenes) ────────────
+    // ── Public API (change mode at runtime, e.g. cutscenes) ──────────────────
     public void SetMode(CameraMode newMode) => mode = newMode;
 
     public void SnapToTarget()

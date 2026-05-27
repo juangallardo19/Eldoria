@@ -1,29 +1,29 @@
 using System.Collections;
 using UnityEngine;
 
-// Plataforma unidireccional — sistema propio inspirado en Hollow Knight / Celeste.
-// Patrón: Strategy — ShouldIgnore() decide cada FixedUpdate si la colisión existe o no,
-//         ANTES de que Unity calcule la física (enfoque proactivo, no reactivo).
+// One-way platform — custom system inspired by Hollow Knight / Celeste.
+// Pattern: Strategy — ShouldIgnore() decides each FixedUpdate whether the collision is active,
+//         BEFORE Unity resolves physics (proactive, not reactive approach).
 //
-// Lógica:
-//   COLISIONA  → fondo del player ENCIMA de la superficie Y player cayendo/quieto
-//               Y centro X del player dentro del ancho de la plataforma.
-//   IGNORA     → player debajo, lateral (centro X fuera del ancho), subiendo, o en drop-through.
+// Logic:
+//   COLLIDES  → player bottom ABOVE surface Y AND player falling or still
+//               AND player centre X within the platform width.
+//   IGNORES   → player below, lateral (centre X outside width), rising, or dropping through.
 //
-// Gestiona TODOS los Collider2D del mismo GameObject para evitar el bug de colisiones
-// duplicadas cuando el objeto tiene más de un BoxCollider2D.
+// Manages ALL Collider2D on the same GameObject to avoid duplicate collision bugs
+// when the object has more than one BoxCollider2D.
 [RequireComponent(typeof(Collider2D))]
 public class OneWayPlatform : MonoBehaviour
 {
-    // Tolerancia: el fondo puede estar hasta X unidades "dentro" del borde y aun aterrizar.
+    // Tolerance: player bottom can be this many units "inside" the edge and still land.
     private const float LAND_TOLERANCE  = 0.1f;
 
-    // Umbral: si velocity.y supera esto se considera que el player sube → ignorar.
+    // Threshold: if velocity.y exceeds this the player is considered rising → ignore.
     private const float RISING_THRESHOLD = 0.4f;
 
-    // Collider de referencia para calcular bounds (el primero); todos se ignoran juntos.
+    // Reference collider for bounds calculation (first one); all are ignored together.
     private Collider2D   _col;
-    private Collider2D[] _allCols;   // todos los Collider2D de este GameObject
+    private Collider2D[] _allCols;   // all Collider2D on this GameObject
 
     private Collider2D  _playerCol;
     private Rigidbody2D _playerRb;
@@ -42,8 +42,8 @@ public class OneWayPlatform : MonoBehaviour
         if (_playerCol == null) FindPlayer();
     }
 
-    // FixedUpdate: proactivo — se ejecuta ANTES de que Unity resuelva la física.
-    // Aplica la decisión a TODOS los colliders del objeto, no solo al primero.
+    // FixedUpdate: proactive — runs BEFORE Unity resolves physics.
+    // Applies the decision to ALL colliders on the object, not just the first.
     void FixedUpdate()
     {
         if (_playerCol == null) { FindPlayer(); return; }
@@ -53,7 +53,7 @@ public class OneWayPlatform : MonoBehaviour
             Physics2D.IgnoreCollision(_playerCol, col, ignore);
     }
 
-    // ── Decisión central ──────────────────────────────────────────────────────
+    // ── Core decision ────────────────────────────────────────────────────────
     private bool ShouldIgnore()
     {
         if (_dropping) return true;
@@ -61,22 +61,22 @@ public class OneWayPlatform : MonoBehaviour
         float surfaceY      = _col.bounds.max.y;
         float playerBottomY = _playerCol.bounds.min.y;
 
-        // Player por debajo de la superficie → viene de abajo o sube por el costado
+        // Player below the surface → coming from underneath or rising along the side
         if (playerBottomY < surfaceY - LAND_TOLERANCE) return true;
 
-        // Player a nivel de superficie o encima: verificar que esté ENCIMA, no lateral.
-        // Si el centro X del player está fuera del ancho de la plataforma → viene de lado.
+        // Player at or above surface: verify they are ABOVE, not lateral.
+        // If player centre X is outside the platform width → coming from the side.
         float playerCenterX = _playerCol.bounds.center.x;
         if (playerCenterX < _col.bounds.min.x || playerCenterX > _col.bounds.max.x) return true;
 
-        // Player encima pero subiendo → puede atravesar hacia arriba
+        // Player above but rising → can pass through upward
         if (_playerRb != null && _playerRb.velocity.y > RISING_THRESHOLD) return true;
 
-        // Player encima, alineado horizontalmente, cayendo o quieto → aterriza
+        // Player above, horizontally aligned, falling or still → lands
         return false;
     }
 
-    // ── Drop-through (llamado desde PlayerController) ─────────────────────────
+    // ── Drop-through (called from PlayerController) ───────────────────────────
     public void TriggerDropThrough(float duration = 0.28f)
     {
         StopAllCoroutines();
@@ -107,7 +107,7 @@ public class OneWayPlatform : MonoBehaviour
             _playerRb  = p.GetComponent<Rigidbody2D>();
             return;
         }
-        Debug.LogWarning($"[OneWayPlatform] {name}: Player no encontrado.");
+        Debug.LogWarning($"[OneWayPlatform] {name}: Player not found.");
     }
 
 #if UNITY_EDITOR

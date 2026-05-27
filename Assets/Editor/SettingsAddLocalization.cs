@@ -5,9 +5,9 @@ using UnityEngine.UI;
 using TMPro;
 
 // Editor script — Eldoria/Add Localization Labels
-// Añade el componente LocalizedText a todos los TMP_Text con nombre "Lbl" dentro de los
-// paneles de Settings, y a los TMP_Text hijos directos de los botones de pestaña.
-// Ejecutar con la escena Settings abierta y después guardar con Ctrl+S.
+// Adds the LocalizedText component to all TMP_Text named "Lbl" inside Settings panels,
+// and to direct TMP_Text children of tab buttons.
+// Run with the Settings scene open, then save with Ctrl+S.
 public static class SettingsAddLocalization
 {
     [MenuItem("Eldoria/Add Localization Labels")]
@@ -16,7 +16,7 @@ public static class SettingsAddLocalization
         var canvas = GameObject.Find("Canvas");
         if (canvas == null)
         {
-            Debug.LogError("[SettingsAddLocalization] Canvas no encontrado. Abre la escena Settings.");
+            Debug.LogError("[SettingsAddLocalization] Canvas not found. Open the Settings scene.");
             return;
         }
 
@@ -33,42 +33,42 @@ public static class SettingsAddLocalization
 
         Canvas.ForceUpdateCanvases();
         EditorSceneManager.MarkSceneDirty(canvas.scene);
-        Debug.Log($"[SettingsAddLocalization] LocalizedText añadido a {count} labels. Guarda con Ctrl+S.");
+        Debug.Log($"[SettingsAddLocalization] LocalizedText added to {count} labels. Save with Ctrl+S.");
     }
 
-    // Localiza cualquier TMP_Text estático cuyo texto sea una clave conocida en LocalizationManager,
-    // o que sea un separador de sección (contiene "──"). Excluye los value labels dinámicos.
+    // Localises any static TMP_Text whose content is a known key in LocalizationManager,
+    // or a section separator (contains "──"). Excludes dynamic value labels.
     static bool ShouldLocalize(TMP_Text text)
     {
         if (string.IsNullOrWhiteSpace(text.text)) return false;
         if (IsExcluded(text)) return false;
 
-        // Etiqueta de fila
+        // Row label
         if (text.gameObject.name == "Lbl") return true;
 
-        // Separadores de sección (── Pantalla ──, etc.)
+        // Section separators (── Screen ──, etc.)
         if (text.text.Contains("──")) return true;
 
-        // Texto dentro de un Button (pestañas, botón Volver, etc.)
+        // Text inside a Button (tabs, Back button, etc.)
         if (IsInsideNamedButton(text.transform)) return true;
 
-        // Cualquier texto que sea una clave de localización conocida
+        // Any text that is a known localisation key
         return LocalizationManager.ContainsKey(text.text);
     }
 
-    // Excluye TMP_Text que son contenido dinámico, no etiquetas estáticas.
+    // Excludes TMP_Text that are dynamic content, not static labels.
     static bool IsExcluded(TMP_Text text)
     {
-        // ValueLabel de SelectionControl — contenido que cambia por código
+        // SelectionControl's ValueLabel — content driven by code
         if (text.gameObject.name == "ValueLabel") return true;
-        // Hijos directos de SelectionControl
+        // Direct children of a SelectionControl
         if (text.transform.parent?.GetComponent<SelectionControl>() != null) return true;
-        // Texto puramente numérico (resoluciones, fps values, etc.)
+        // Purely numeric text (resolutions, fps values, etc.)
         if (int.TryParse(text.text, out _)) return true;
         return false;
     }
 
-    // Sube la jerarquía buscando un Button con "tab" o "back" en el nombre.
+    // Walks the hierarchy looking for a Button with "tab" or "back" in its name.
     static bool IsInsideNamedButton(Transform t)
     {
         while (t != null)

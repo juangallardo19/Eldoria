@@ -1,8 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-// Datos de una sección del mapa. Se adjunta a cada Image de zona.
-// Patrón: Value Object
+// Data for a map section. Attached to each zone Image.
+// Pattern: Value Object
 public class WorldMapSection : MonoBehaviour
 {
     public string   zoneId;

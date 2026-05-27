@@ -3,24 +3,24 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
 
-// Singleton DontDestroyOnLoad que gestiona el mapa de mundo.
-// Patrón: Singleton + Observer + State
+// Singleton DontDestroyOnLoad that manages the world map.
+// Pattern: Singleton + Observer + State
 //
-// Tecla M     → abre/cierra. Pausa el juego y oscurece la pantalla.
-// Tecla Tab   → (con mapa abierto) alterna entre tab HUB y MONTAÑAS (solo dos vistas).
-// SceneLoaded → marca zona visitada, actualiza sprites, cambia al tab correcto.
+// Key M     → open/close. Pauses the game and dims the screen.
+// Key Tab   → (map open) toggles between HUB and MOUNTAINS tabs (two views only).
+// SceneLoaded → marks zone as visited, updates sprites, switches to the correct tab.
 public class WorldMapController : MonoBehaviour
 {
     public static WorldMapController Instance { get; private set; }
     public bool IsOpen => _mapOpen;
 
-    [Header("Referencias (cableadas por SetupWorldMap)")]
+    [Header("References (wired by SetupWorldMap)")]
     [SerializeField] private GameObject mapCanvas;
     [SerializeField] private GameObject hubContainer;
     [SerializeField] private GameObject mtnContainer;
     [SerializeField] private TMP_Text   currentZoneLabel;
 
-    // Zonas visibles desde el inicio (tutorial — no requieren ser visitadas)
+    // Zones visible from the start (tutorial — do not need to be visited first)
     private static readonly string[] PreDiscoveredZones = { "HUB01","HUB02","HUB03","HUB04","HUB05","HUB06" };
 
     private WorldMapSection[] _sections;
@@ -33,7 +33,7 @@ public class WorldMapController : MonoBehaviour
     private bool     _wasTimePaused = false;
     private float    _pulseTimer    = 0f;
 
-    // Tutorial: zona objetivo con pulso amarillo + "!"
+    // Tutorial: target zone with yellow pulse + "!"
     private string    _tutorialObjZone  = null;
     private Transform _tutorialMarkerTr = null;
     private float     _tutorialPulseT   = 0f;
@@ -41,31 +41,31 @@ public class WorldMapController : MonoBehaviour
     public void SetTutorialObjective(string zoneId) { _tutorialObjZone = zoneId; _tutorialPulseT = 0f; }
     public void ClearTutorialObjective() { _tutorialObjZone = null; HideTutorialMarker(); }
 
-    // ── Mapeo escena → zoneId ────────────────────────────────────────────
+    // ── Scene → zoneId mapping ───────────────────────────────────────────
     private static readonly Dictionary<string, string> SceneToZone = new()
     {
-        { "HV01_Interior",    "HUB01" },
-        { "HV01_Exterior",    "HUB01" },
-        { "HV02_PlazaCentral","HUB02" },
-        { "HV04",             "HUB04" },
-        { "HV05",             "HUB05" },
-        { "HV06",             "HUB06" },
-        { "HV07",             "HUB07" },
-        { "MTN01_Exterior",   "MTN01" },
-        { "MTN01_Interior",   "MTN01" },
-        { "MTN02",            "MTN02" },
-        { "MTN03",            "MTN03" },
-        { "MTN04",            "MTN04" },
-        { "MTN05",            "MTN05" },
-        { "MTN06",            "MTN06" },
-        { "MTN07",            "MTN07" },
-        { "MTN08",            "MTN08" },
-        { "MTN09",            "MTN09" },
-        { "PreMTN10",         "MTN10" },
-        { "MTN10",            "MTN10" },
-        { "PreMTN11",         "MTN11" },
-        { "MTN11",            "MTN11" },
-        { "MTN12",            "MTN12" },
+        { EldoriaSceneNames.HV01_Interior,     "HUB01" },
+        { EldoriaSceneNames.HV01_Exterior,     "HUB01" },
+        { EldoriaSceneNames.HV02_PlazaCentral, "HUB02" },
+        { EldoriaSceneNames.HV04,              "HUB04" },
+        { EldoriaSceneNames.HV05,              "HUB05" },
+        { EldoriaSceneNames.HV06,              "HUB06" },
+        { EldoriaSceneNames.HV07,              "HUB07" },
+        { EldoriaSceneNames.MTN01_Exterior,    "MTN01" },
+        { EldoriaSceneNames.MTN01_Interior,    "MTN01" },
+        { EldoriaSceneNames.MTN02,             "MTN02" },
+        { EldoriaSceneNames.MTN03,             "MTN03" },
+        { EldoriaSceneNames.MTN04,             "MTN04" },
+        { EldoriaSceneNames.MTN05,             "MTN05" },
+        { EldoriaSceneNames.MTN06,             "MTN06" },
+        { EldoriaSceneNames.MTN07,             "MTN07" },
+        { EldoriaSceneNames.MTN08,             "MTN08" },
+        { EldoriaSceneNames.MTN09,             "MTN09" },
+        { EldoriaSceneNames.PreMTN10,          "MTN10" },
+        { EldoriaSceneNames.MTN10,             "MTN10" },
+        { EldoriaSceneNames.PreMTN11,          "MTN11" },
+        { EldoriaSceneNames.MTN11,             "MTN11" },
+        { EldoriaSceneNames.MTN12,             "MTN12" },
     };
 
     private static readonly Dictionary<string, string> ZoneDisplayNames = new()
@@ -91,14 +91,14 @@ public class WorldMapController : MonoBehaviour
         { "MTN12", "???"                     },
     };
 
-    // ── Ciclo de vida ─────────────────────────────────────────────────────
+    // ── Lifecycle ─────────────────────────────────────────────────────────
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        // Fallback: buscar por nombre si la referencia serializada es nula
+        // Fallback: search by name if the serialized reference is null
         if (mapCanvas == null)
             mapCanvas = transform.Find("MapCanvas")?.gameObject;
         if (mapCanvas != null)
@@ -111,7 +111,7 @@ public class WorldMapController : MonoBehaviour
                 currentZoneLabel = mapCanvas.transform.Find("ZoneName")?.GetComponent<TMP_Text>();
         }
 
-        // Las zonas de tutorial siempre están visibles desde el primer arranque
+        // Tutorial zones are always visible from the very first launch
         foreach (var z in PreDiscoveredZones) MarkVisited(z);
 
         _sections = GetComponentsInChildren<WorldMapSection>(true);
@@ -143,7 +143,7 @@ public class WorldMapController : MonoBehaviour
         if (Input.GetKeyDown(mapKey))
             SetMapOpen(!_mapOpen);
 
-        // Tab alterna entre sección HUB y sección MTN mientras el mapa está abierto
+        // Tab toggles between HUB and MTN sections while the map is open
         if (_mapOpen && Input.GetKeyDown(KeyCode.Tab))
             SwitchTab();
 
@@ -155,7 +155,7 @@ public class WorldMapController : MonoBehaviour
             float tintAmt = 0.45f * sinVal;
             UpdateCurrentPulse(scale, tintAmt);
 
-            // Pulso amarillo para zona objetivo del tutorial
+            // Yellow pulse for tutorial target zone
             if (!string.IsNullOrEmpty(_tutorialObjZone))
             {
                 _tutorialPulseT += Time.unscaledDeltaTime;
@@ -166,7 +166,7 @@ public class WorldMapController : MonoBehaviour
         }
     }
 
-    // ── Abrir / cerrar ────────────────────────────────────────────────────
+    // ── Open / close ──────────────────────────────────────────────────────
     void SetMapOpen(bool open)
     {
         _mapOpen = open;
@@ -231,7 +231,7 @@ public class WorldMapController : MonoBehaviour
         }
     }
 
-    // Restaura el container a pantalla completa al cerrar
+    // Restores the container to full-screen when closing the map
     void RestoreFullscreen(GameObject container)
     {
         if (container == null) return;
@@ -243,13 +243,13 @@ public class WorldMapController : MonoBehaviour
         rt.offsetMax = Vector2.zero;
     }
 
-    // ── Actualizar visibilidad y sprites ──────────────────────────────────
+    // ── Update visibility and sprites ────────────────────────────────────
     void RefreshAll()
     {
         if (_sections == null) _sections = GetComponentsInChildren<WorldMapSection>(true);
         if (_lines    == null) _lines    = GetComponentsInChildren<WorldMapLine>(true);
 
-        // Secciones: mostrar solo si la zona fue descubierta; siempre NormalState
+        // Sections: show only if the zone was discovered; always NormalState
         foreach (var sec in _sections)
         {
             if (sec == null) continue;
@@ -267,13 +267,13 @@ public class WorldMapController : MonoBehaviour
             sec.transform.localScale = Vector3.one;
         }
 
-        // Líneas con WorldMapLine: visibles solo si AMBAS zonas conectadas están descubiertas
+        // Lines with WorldMapLine: visible only if BOTH connected zones are discovered
         foreach (var line in _lines)
         {
             if (line == null) continue;
             line.gameObject.SetActive(IsVisited(line.zoneIdA) && IsVisited(line.zoneIdB));
         }
-        // Líneas sin WorldMapLine (extras no cableadas): siempre ocultas
+        // Lines without WorldMapLine (unwired extras): always hidden
         HideUnwiredLines(hubContainer);
         HideUnwiredLines(mtnContainer);
 
@@ -284,7 +284,7 @@ public class WorldMapController : MonoBehaviour
         }
     }
 
-    // Oculta hijos directos del container que no son secciones ni tienen WorldMapLine
+    // Hides direct children of the container that are neither sections nor have WorldMapLine
     void HideUnwiredLines(GameObject container)
     {
         if (container == null) return;
@@ -298,7 +298,7 @@ public class WorldMapController : MonoBehaviour
         }
     }
 
-    // Pulse suave en la zona actual: escala +4% y tinte azul 45%
+    // Soft pulse on current zone: +4% scale and 45% blue tint
     void UpdateCurrentPulse(float scale, float tintAmt)
     {
         if (_sections == null) return;
@@ -323,12 +323,12 @@ public class WorldMapController : MonoBehaviour
     public static void MarkVisited(string zoneId)
     {
         if (string.IsNullOrEmpty(zoneId)) return;
-        PlayerPrefs.SetInt("MapVisited_" + zoneId, 1);
+        PlayerPrefs.SetInt(EldoriaPrefsKeys.MapVisitedPrefix + zoneId, 1);
         PlayerPrefs.Save();
     }
 
     public static bool IsVisited(string zoneId) =>
-        PlayerPrefs.GetInt("MapVisited_" + zoneId, 0) == 1;
+        PlayerPrefs.GetInt(EldoriaPrefsKeys.MapVisitedPrefix + zoneId, 0) == 1;
 
     public static void ClearAllVisited()
     {
@@ -338,13 +338,13 @@ public class WorldMapController : MonoBehaviour
             "MTN01","MTN02","MTN03","MTN04","MTN05","MTN06",
             "MTN07","MTN08","MTN09","MTN10","MTN11","MTN12"
         })
-            PlayerPrefs.DeleteKey("MapVisited_" + id);
+            PlayerPrefs.DeleteKey(EldoriaPrefsKeys.MapVisitedPrefix + id);
 
         foreach (var z in PreDiscoveredZones) MarkVisited(z);
         PlayerPrefs.Save();
     }
 
-    // ── Tutorial: zona objetivo con pulso amarillo y "!" ──────────────────
+    // ── Tutorial: target zone with yellow pulse and "!" ──────────────────
 
     void EnsureTutorialMarker()
     {
@@ -397,11 +397,11 @@ public class WorldMapController : MonoBehaviour
         foreach (var sec in _sections)
         {
             if (sec == null || !sec.gameObject.activeSelf || sec.zoneId != _tutorialObjZone) continue;
-            // Escala +7% y tinte amarillo
+            // +7% scale and yellow tint
             sec.transform.localScale = Vector3.one * (1f + 0.07f * t);
             if (sec.sectionImage != null)
                 sec.sectionImage.color = Color.Lerp(Color.white, new Color(1f, 0.88f, 0f, 1f), 0.35f + 0.4f * t);
-            // Pulso del "!"
+            // "!" pulse
             if (_tutorialMarkerTr != null)
                 _tutorialMarkerTr.localScale = Vector3.one * (1f + 0.3f * t);
             return;

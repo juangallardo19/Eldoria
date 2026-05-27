@@ -2,9 +2,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-// Reasignación de teclas en tiempo real con sprites de teclado (KeysConfigNormal / KeysConfigPresss).
-// Observer: cada cambio se guarda en PlayerPrefs inmediatamente; PlayerController lo recoge en el
-// siguiente frame sin reinicio porque llama KeyRebindUI.GetKey() en Update cada vez.
+// Real-time key rebinding with keyboard sprites (KeysConfigNormal / KeysConfigPresss).
+// Pattern: Observer — each change is saved to PlayerPrefs immediately; PlayerController
+// picks it up on the next frame without a restart because it calls KeyRebindUI.GetKey() in Update.
 public class KeyRebindUI : MonoBehaviour
 {
     [System.Serializable]
@@ -19,11 +19,11 @@ public class KeyRebindUI : MonoBehaviour
 
     [SerializeField] private BindingEntry[] entries;
 
-    [Header("Sprites de tecla (Assets/UI/Sprites/KeysConfig/)")]
+    [Header("Key sprites (Assets/UI/Sprites/KeysConfig/)")]
     [SerializeField] private Sprite keyNormalSprite;    // KeysConfigNormal.png
     [SerializeField] private Sprite keyListeningSprite; // KeysConfigPresss.png
 
-    [Header("Color de escucha (cuando no hay sprites asignados)")]
+    [Header("Listening highlight colour (fallback when no sprites are assigned)")]
     [SerializeField] private Color listeningColor = new Color(1f, 0.85f, 0.4f, 1f);
 
     private BindingEntry listeningEntry;
@@ -35,7 +35,7 @@ public class KeyRebindUI : MonoBehaviour
     {
         foreach (var e in entries)
         {
-            string saved    = PlayerPrefs.GetString("Key_" + e.actionId, e.defaultKey.ToString());
+            string saved    = PlayerPrefs.GetString(EldoriaPrefsKeys.KeyPrefix + e.actionId, e.defaultKey.ToString());
             e.currentKey    = (KeyCode)System.Enum.Parse(typeof(KeyCode), saved);
             e.keyLabel.text = FriendlyName(e.currentKey);
 
@@ -46,7 +46,7 @@ public class KeyRebindUI : MonoBehaviour
         }
     }
 
-    // Configura el botón para usar SpriteSwap con las imágenes de teclado.
+    // Configures the button to use SpriteSwap with the keyboard images.
     private void InitButtonSprites(Button btn)
     {
         if (!HasSprites) return;
@@ -113,7 +113,7 @@ public class KeyRebindUI : MonoBehaviour
 
             listeningEntry.currentKey    = kc;
             listeningEntry.keyLabel.text = FriendlyName(kc);
-            PlayerPrefs.SetString("Key_" + listeningEntry.actionId, kc.ToString());
+            PlayerPrefs.SetString(EldoriaPrefsKeys.KeyPrefix + listeningEntry.actionId, kc.ToString());
             PlayerPrefs.Save();
             ResetButtonVisual(listeningButtonImage);
             listeningEntry       = null;
@@ -122,7 +122,7 @@ public class KeyRebindUI : MonoBehaviour
         }
     }
 
-    // Nombres cortos y legibles para teclas especiales y modificadores.
+    // Short, readable display names for special keys and modifiers.
     public static string FriendlyName(KeyCode kc) => kc switch
     {
         KeyCode.LeftControl    => "L.Ctrl",
@@ -167,10 +167,10 @@ public class KeyRebindUI : MonoBehaviour
         _                      => kc.ToString()
     };
 
-    // Llamar desde PlayerController con: KeyRebindUI.GetKey("Jump", KeyCode.Z)
+    // Usage: KeyRebindUI.GetKey("Jump", KeyCode.Z)
     public static KeyCode GetKey(string actionId, KeyCode fallback = KeyCode.Space)
     {
-        string saved = PlayerPrefs.GetString("Key_" + actionId, fallback.ToString());
+        string saved = PlayerPrefs.GetString(EldoriaPrefsKeys.KeyPrefix + actionId, fallback.ToString());
         return (KeyCode)System.Enum.Parse(typeof(KeyCode), saved);
     }
 }

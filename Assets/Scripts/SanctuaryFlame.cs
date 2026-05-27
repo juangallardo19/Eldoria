@@ -3,35 +3,35 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
 
-// Santuario de Ara — llama azul interactiva con parpadeo y prompt de descanso.
-// Patrón State: Idle (solo parpadeo) / Near (prompt visible + partículas intensificadas).
-// Al presionar E cerca: guarda checkpoint (escena + posición) y restaura vidas.
+// Sanctuary of Ara — interactive blue flame with flicker and rest prompt.
+// Pattern State: Idle (flicker only) / Near (prompt visible + intensified particles).
+// Press E near it: saves checkpoint (scene + position) and restores lives.
 public class SanctuaryFlame : MonoBehaviour
 {
     public static event System.Action OnRested;
 
-    [Header("Referencias")]
+    [Header("References")]
     public ParticleSystem flameParticles;
     public SpriteRenderer glowRenderer;
     public TextMeshPro promptText;
 
-    [Header("Parpadeo")]
+    [Header("Flicker")]
     [SerializeField] private float flickerSpeed     = 3.5f;
     [SerializeField] private float flickerAmplitude = 0.28f;
     [SerializeField] private float baseAlpha        = 0.55f;
 
-    [Header("Proximidad")]
+    [Header("Proximity")]
     [SerializeField] private float interactRadius = 10f;
 
-    [Header("Descanso")]
-    [SerializeField] private string restPrompt    = "Descansar [E]";
+    [Header("Rest")]
+    [SerializeField] private string restPrompt     = "Descansar [E]";
     [SerializeField] private string restingMessage = "Descansando...";
 
     private Transform _player;
     private bool      _playerNear;
     private bool      _resting;
-    private float     _nearTimer;          // cuánto tiempo lleva el jugador cerca
-    const float INTERACT_HOLD = 0.4f;     // segundos que el jugador debe estar cerca antes de que E funcione
+    private float     _nearTimer;
+    private const float InteractHoldDuration = 0.4f;  // seconds player must be near before E works
 
     void Start()
     {
@@ -39,7 +39,6 @@ public class SanctuaryFlame : MonoBehaviour
         if (p != null) _player = p.transform;
         if (promptText != null)
         {
-            // Fuente, tamaño y bold se aplican en código para consistencia entre escenas
 #if UNITY_EDITOR
             var font = UnityEditor.AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>(
                 "Assets/UI/Fonts/Perfect DOS VGA 437 Win SDF.asset");
@@ -56,7 +55,6 @@ public class SanctuaryFlame : MonoBehaviour
 
     void Update()
     {
-        // Parpadeo orgánico de la llama
         if (glowRenderer != null)
         {
             float alpha = baseAlpha
@@ -74,13 +72,13 @@ public class SanctuaryFlame : MonoBehaviour
         }
         if (_player == null) return;
 
-        // Detección horizontal: solo distancia X, tolerante a diferencia de altura
+        // Horizontal-only proximity check: tolerant of height differences
         bool near = Mathf.Abs(_player.position.x - transform.position.x) <= interactRadius;
 
         if (near != _playerNear)
         {
             _playerNear = near;
-            _nearTimer  = 0f;   // reiniciar timer al entrar/salir del rango
+            _nearTimer  = 0f;
             if (promptText != null && !_resting)
                 promptText.gameObject.SetActive(near);
 
@@ -91,11 +89,9 @@ public class SanctuaryFlame : MonoBehaviour
             }
         }
 
-        // Acumular tiempo cerca para evitar activación accidental al spawnear o pasar corriendo.
         if (_playerNear) _nearTimer += Time.deltaTime;
 
-        // Interacción: E para descansar — solo si lleva al menos INTERACT_HOLD segundos cerca.
-        if (_playerNear && !_resting && _nearTimer >= INTERACT_HOLD && Input.GetKeyDown(KeyCode.E))
+        if (_playerNear && !_resting && _nearTimer >= InteractHoldDuration && Input.GetKeyDown(KeyCode.E))
             StartCoroutine(Rest());
     }
 
@@ -103,16 +99,14 @@ public class SanctuaryFlame : MonoBehaviour
     {
         _resting = true;
 
-        // Guardar checkpoint en PlayerPrefs
         string sceneName = SceneManager.GetActiveScene().name;
         float  sx        = _player.position.x;
         float  sy        = _player.position.y;
-        PlayerPrefs.SetString("SanctuaryScene", sceneName);
-        PlayerPrefs.SetFloat("SanctuaryX", sx);
-        PlayerPrefs.SetFloat("SanctuaryY", sy);
+        PlayerPrefs.SetString(EldoriaPrefsKeys.SanctuaryScene, sceneName);
+        PlayerPrefs.SetFloat(EldoriaPrefsKeys.SanctuaryX, sx);
+        PlayerPrefs.SetFloat(EldoriaPrefsKeys.SanctuaryY, sy);
         PlayerPrefs.Save();
 
-        // Guardar santuario en el slot activo — respawn al cargar partida
         if (SaveManager.ActiveSlot >= 0 && SaveManager.Instance != null)
         {
             var sdata = SaveManager.Instance.Load(SaveManager.ActiveSlot);
@@ -125,18 +119,15 @@ public class SanctuaryFlame : MonoBehaviour
             }
         }
 
-        // Restaurar vidas (funciona aunque la escena no tenga CrystalRespawnManager)
         CrystalRespawnManager.RestoreLivesGlobal();
         OnRested?.Invoke();
 
-        // Feedback visual
         if (promptText != null)
         {
             promptText.text = restingMessage;
             promptText.gameObject.SetActive(true);
         }
 
-        // Intensificar llama brevemente
         if (flameParticles != null)
         {
             var emission = flameParticles.emission;

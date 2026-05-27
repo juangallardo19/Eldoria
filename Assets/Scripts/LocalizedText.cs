@@ -1,11 +1,10 @@
 using TMPro;
 using UnityEngine;
 
-/// Observer subscriber — actualiza el TMP_Text adjunto cada vez que cambia el idioma.
-///
-/// Patrones aplicados:
-///   Observer  — suscribe a LocalizationManager.OnLanguageChanged (se desuscribe en OnDisable).
-///   Flyweight — no almacena la tabla; la pide a LocalizationManager (tabla compartida).
+// Observer subscriber — updates the attached TMP_Text whenever the language changes.
+// Patterns:
+//   Observer  — subscribes to LocalizationManager.OnLanguageChanged (unsubscribes in OnDisable).
+//   Flyweight — does not store the table; requests it from LocalizationManager (shared table).
 [RequireComponent(typeof(TMP_Text))]
 public class LocalizedText : MonoBehaviour
 {

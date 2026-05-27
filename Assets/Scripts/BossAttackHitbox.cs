@@ -1,10 +1,10 @@
 using UnityEngine;
 
-// Patrón Command — hitbox de daño del boss, activada/desactivada por BossObsesion.
+// Pattern: Command — boss damage hitbox, activated/deactivated by BossObsesion.
 //
-// BUG Unity: OnTriggerEnter2D NO dispara si el jugador YA ESTÁ dentro del área
-// cuando el collider se habilita. Solución: Physics2D.OverlapBox instantáneo en
-// Activate() + OnTriggerStay2D como respaldo, ambos usando el mismo flag.
+// Unity bug: OnTriggerEnter2D does NOT fire if the player is ALREADY INSIDE the area
+// when the collider is enabled. Fix: immediate Physics2D.OverlapBox in Activate()
+// + OnTriggerStay2D as backup, both using the same flag.
 [RequireComponent(typeof(BoxCollider2D))]
 public class BossAttackHitbox : MonoBehaviour
 {
@@ -26,7 +26,7 @@ public class BossAttackHitbox : MonoBehaviour
         _hitThisActivation = false;
         _col.enabled       = true;
 
-        // Chequeo instantáneo: si el jugador ya está dentro, golpear de inmediato
+        // Immediate check: hit at once if the player is already inside
         CheckOverlap();
     }
 
@@ -35,10 +35,10 @@ public class BossAttackHitbox : MonoBehaviour
         _col.enabled = false;
     }
 
-    // Jugador entra al trigger mientras está activo
+    // Player enters the trigger while active
     void OnTriggerEnter2D(Collider2D other) => TryHit(other);
 
-    // Jugador permanece dentro (backup por si OnTriggerEnter2D no disparó)
+    // Player stays inside (backup in case OnTriggerEnter2D didn't fire)
     void OnTriggerStay2D(Collider2D other) => TryHit(other);
 
     void OnDisable() => _hitThisActivation = false;

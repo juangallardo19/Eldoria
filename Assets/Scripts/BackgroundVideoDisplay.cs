@@ -2,9 +2,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Video;
 
-// Strategy — decide en Start() si el video persiste (navegando desde MainMenu)
-// o si no hay manager (escena abierta directamente en el editor).
-// Fallback: si BVM no existe, crea un VideoPlayer local con fallbackClip.
+// Pattern: Strategy — decides in Start() whether a persistent video exists (navigating from
+// MainMenu) or there is no manager (scene opened directly in the editor).
+// Fallback: if BackgroundVideoManager doesn't exist, creates a local VideoPlayer with fallbackClip.
 [RequireComponent(typeof(RawImage))]
 public class BackgroundVideoDisplay : MonoBehaviour
 {

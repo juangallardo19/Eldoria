@@ -4,15 +4,15 @@ using UnityEditor;
 using UnityEditor.U2D.Sprites;
 using UnityEditor.SceneManagement;
 
-// Patrón: Command (cada MenuItem encapsula una acción reversible y acotada)
+// Pattern: Command (each MenuItem encapsulates a reversible, scoped action)
 //
-// Paso 1 — Eldoria/SombraNinja/1 - Importar Sprites
-//   Corta los 3 sprite sheets del ninja con ISpriteEditorDataProvider (API Unity 2022.3).
-//   Ejecutar UNA sola vez; es idempotente si se repite.
+// Step 1 — Eldoria/SombraNinja/1 - Import Sprites
+//   Slices the 3 ninja sprite sheets with ISpriteEditorDataProvider (Unity 2022.3 API).
+//   Run ONCE; idempotent if repeated.
 //
-// Paso 2 — Eldoria/SombraNinja/2 - Colocar en MTN02
-//   Requiere que MTN02 sea la escena activa.
-//   Crea "SombraNinja_1" con jerarquía completa y lo cablea con los sprites ya importados.
+// Step 2 — Eldoria/SombraNinja/2 - Place in MTN02
+//   Requires MTN02 as the active scene.
+//   Creates "SombraNinja_1" with full hierarchy and wires it with the already-imported sprites.
 public static class SetupSombraNinja
 {
     const string SpritePath = "Assets/Sprites/Enemigos/sprite ninja/";
@@ -34,7 +34,7 @@ public static class SetupSombraNinja
         {
             string path = SpritePath + file + ".png";
             var ti = AssetImporter.GetAtPath(path) as TextureImporter;
-            if (ti == null) { Debug.LogWarning($"[SombraNinja] No encontrado: {path}"); continue; }
+            if (ti == null) { Debug.LogWarning($"[SombraNinja] Not found: {path}"); continue; }
 
             // Configuración base
             ti.textureType         = TextureImporterType.Sprite;
@@ -46,9 +46,9 @@ public static class SetupSombraNinja
             ti.spritePixelsPerUnit = 16f;
             ti.maxTextureSize      = 4096;
             EditorUtility.SetDirty(ti);
-            ti.SaveAndReimport();   // obligatorio antes de usar ISpriteEditorDataProvider
+            ti.SaveAndReimport();   // required before using ISpriteEditorDataProvider
 
-            // Ancho real de la textura para el último frame
+            // Actual texture width for the last frame
             ti.GetSourceTextureWidthAndHeight(out int texW, out int _);
 
             var factory = new SpriteDataProviderFactories();
@@ -60,12 +60,12 @@ public static class SetupSombraNinja
             for (int i = 0; i < frames; i++)
             {
                 int x = i * fw;
-                int w = (i == frames - 1) ? (texW - x) : fw;   // último frame = píxeles restantes
+                int w = (i == frames - 1) ? (texW - x) : fw;   // last frame = remaining pixels
                 rects[i] = new SpriteRect
                 {
                     name      = $"{file}_{i}",
                     rect      = new Rect(x, 0, w, fh),
-                    pivot     = new Vector2(0.25f, 0f),         // figura visible ~25% desde la izquierda
+                    pivot     = new Vector2(0.25f, 0f),         // visible figure ~25% from the left
                     alignment = SpriteAlignment.Custom,
                     spriteID  = GUID.Generate(),
                 };
@@ -74,12 +74,12 @@ public static class SetupSombraNinja
             dp.SetSpriteRects(rects);
             dp.Apply();
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
-            Debug.Log($"[SombraNinja] '{file}' → {frames} frames importados");
+            Debug.Log($"[SombraNinja] '{file}' → {frames} frames imported");
             ok++;
         }
 
         AssetDatabase.Refresh();
-        Debug.Log($"[SombraNinja] Paso 1 completo — {ok}/3 sheets importados.");
+        Debug.Log($"[SombraNinja] Step 1 complete — {ok}/3 sheets imported.");
     }
 
     // ── Paso 2: crear SombraNinja_1 en MTN02 ─────────────────────────────────
@@ -90,11 +90,11 @@ public static class SetupSombraNinja
         if (scene.name != "MTN02")
         {
             EditorUtility.DisplayDialog("Eldoria",
-                "Abre la escena MTN02 antes de ejecutar este menú.", "OK");
+                "Open the MTN02 scene before running this menu.", "OK");
             return;
         }
 
-        // Idempotencia: eliminar instancia previa si existe
+        // Idempotency: remove any pre-existing instance
         var old = GameObject.Find("SombraNinja_1");
         if (old != null) { Undo.DestroyObjectImmediate(old); }
 
@@ -106,13 +106,13 @@ public static class SetupSombraNinja
         if (idleSprites.Length == 0 || attackSprites.Length == 0 || deathSprites.Length == 0)
         {
             EditorUtility.DisplayDialog("Eldoria",
-                "Sprites no encontrados.\nEjecuta primero 'SombraNinja/1 - Importar Sprites'.", "OK");
+                "Sprites not found.\nRun 'SombraNinja/1 - Import Sprites' first.", "OK");
             return;
         }
 
         // ── 2. Crear GameObject raíz ─────────────────────────────────────────
         var root = new GameObject("SombraNinja_1");
-        Undo.RegisterCreatedObjectUndo(root, "Crear SombraNinja_1");
+        Undo.RegisterCreatedObjectUndo(root, "Create SombraNinja_1");
 
         root.transform.position   = new Vector3(0f, -14f, 0f);
         root.transform.localScale = new Vector3(2f, 2f, 1f);

@@ -3,9 +3,9 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
 
-// Singleton DontDestroyOnLoad — contador de FPS persistente en overlay.
-// Patrones: Singleton (instancia global) + Observer (reacciona a sceneLoaded).
-// Se auto-crea al iniciar el juego y muestra/oculta según la preferencia "ShowFPS".
+// Singleton DontDestroyOnLoad — persistent FPS counter overlay.
+// Patterns: Singleton (global instance) + Observer (reacts to sceneLoaded).
+// Auto-created at game start; shows/hides based on the ShowFPS preference.
 public class FpsCounter : MonoBehaviour
 {
     public static FpsCounter Instance { get; private set; }
@@ -46,15 +46,15 @@ public class FpsCounter : MonoBehaviour
         }
     }
 
-    void Refresh() => gameObject.SetActive(PlayerPrefs.GetInt("ShowFPS", 0) == 1);
+    void Refresh() => gameObject.SetActive(PlayerPrefs.GetInt(EldoriaPrefsKeys.ShowFPS, 0) == 1);
 
     public static void SetVisible(bool on)
     {
-        PlayerPrefs.SetInt("ShowFPS", on ? 1 : 0);
+        PlayerPrefs.SetInt(EldoriaPrefsKeys.ShowFPS, on ? 1 : 0);
         if (Instance != null) Instance.gameObject.SetActive(on);
     }
 
-    // Crea Canvas overlay + label en esquina superior derecha cuando no hay prefab asignado.
+    // Creates a Canvas overlay + label in the top-right corner when no prefab is assigned.
     void BuildDisplay()
     {
         var canvas = gameObject.AddComponent<Canvas>();
@@ -82,7 +82,7 @@ public class FpsCounter : MonoBehaviour
         rt.sizeDelta        = new Vector2(120f, 30f);
     }
 
-    // Se ejecuta una vez al arrancar el juego — crea la instancia si no existe.
+    // Runs once at game startup — creates the instance if it doesn't exist.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Bootstrap()
     {

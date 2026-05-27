@@ -3,18 +3,18 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-// Patrón Observer — escucha BossObsesion.OnHealthChanged / OnPhaseChanged / OnBossDead.
-// Barra de vida con dos sprites superpuestos:
-//   Capa 1 (fondo):  0%.png  — siempre visible, representa la barra vacía
-//   Capa 2 (fill):   100%.png — Image.Type.Filled horizontal, se recorta sin deformar
-// Posición: top-center de la pantalla.
+// Pattern: Observer — listens to BossObsesion.OnHealthChanged / OnPhaseChanged / OnBossDead.
+// Health bar using two layered sprites:
+//   Layer 1 (background): 0%.png  — always visible, represents the empty bar
+//   Layer 2 (fill):       100%.png — Image.Type.Filled horizontal, clips without stretching
+// Position: top-centre of the screen.
 public class BossHealthBar : MonoBehaviour
 {
-    [Header("Sprites (asignar en Inspector)")]
+    [Header("Sprites (assign in Inspector)")]
     [SerializeField] private Sprite fullBarSprite;    // 100%.png
     [SerializeField] private Sprite emptyBarSprite;   // 0%.png
 
-    [Header("Fuente del nombre (asignar Perfect DOS VGA 437 Win SDF en Inspector)")]
+    [Header("Name font (assign Perfect DOS VGA 437 Win SDF in Inspector)")]
     [SerializeField] private TMP_FontAsset bossNameFont;
 
     private Canvas          _canvas;
@@ -23,14 +23,14 @@ public class BossHealthBar : MonoBehaviour
     private TextMeshProUGUI _nameText;
     private TextMeshProUGUI _phaseText;
 
-    // Colores de fallback (cuando no hay sprites asignados)
+    // Fallback colours (when no sprites are assigned)
     private static readonly Color Col1 = new Color(0.85f, 0.15f, 0.1f);
     private static readonly Color Col2 = new Color(0.9f, 0.45f, 0.0f);
     private static readonly Color Col3 = new Color(1f, 0.9f, 0.0f);
 
     void Awake()
     {
-        BuildUI();   // _canvasGroup se inicializa dentro de BuildUI
+        BuildUI();   // _canvasGroup is initialised inside BuildUI
         BossObsesion.OnHealthChanged  += HandleHealthChanged;
         BossObsesion.OnPhaseChanged   += HandlePhaseChanged;
         BossObsesion.OnBossDefeated   += HandleBossDefeated;
@@ -71,7 +71,7 @@ public class BossHealthBar : MonoBehaviour
             };
         }
 
-        // Solo tinta de color si no hay sprite asignado (modo fallback)
+        // Colour tint only when no sprite is assigned (fallback mode)
         if (fullBarSprite == null && _hpFill != null)
         {
             _hpFill.color = phase switch
@@ -83,14 +83,14 @@ public class BossHealthBar : MonoBehaviour
         }
     }
 
-    private void HandleBossDefeated() => StartCoroutine(FadeOut(0f));  // desaparece al instante
-    private void HandleBossDead()     => StartCoroutine(FadeOut(0f));  // por si acaso (seguridad)
+    private void HandleBossDefeated() => StartCoroutine(FadeOut(0f));  // disappears immediately
+    private void HandleBossDead()     => StartCoroutine(FadeOut(0f));  // safety fallback
 
-    // ── Construcción de UI ────────────────────────────────────────────────────
+    // ── UI construction ───────────────────────────────────────────────────────
 
     private void BuildUI()
     {
-        // Auto-cargar la fuente del juego si no fue asignada en el Inspector
+        // Auto-load the game font if it was not assigned in the Inspector
 #if UNITY_EDITOR
         if (bossNameFont == null)
             bossNameFont = UnityEditor.AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>(
@@ -118,15 +118,15 @@ public class BossHealthBar : MonoBehaviour
         const float BAR_W  = 800f;
         const float BAR_H  = 260f;
 
-        // ── HUDGroup: borde inferior, ancho completo ─────────────────────────
+        // ── HUDGroup: bottom edge, full width ────────────────────────────────
         var hudGO = new GameObject("HUDGroup");
         hudGO.transform.SetParent(canvasGO.transform, false);
         var hudRt = hudGO.AddComponent<RectTransform>();
-        hudRt.anchorMin        = new Vector2(0f, 0f);   // stretch X, anclado al fondo
+        hudRt.anchorMin        = new Vector2(0f, 0f);   // stretch X, anchored to bottom
         hudRt.anchorMax        = new Vector2(1f, 0f);
         hudRt.pivot            = new Vector2(0.5f, 1f);
-        hudRt.anchoredPosition = new Vector2(0f, 210f); // borde superior a 210px del fondo
-        hudRt.sizeDelta        = new Vector2(0f, 288f); // ancho completo (Left=0, Right=0)
+        hudRt.anchoredPosition = new Vector2(0f, 210f); // top edge 210px from bottom
+        hudRt.sizeDelta        = new Vector2(0f, 288f); // full width (Left=0, Right=0)
 
         // ── BarContainer: top-center del HUDGroup, 800×260 ───────────────────
         var barGO = new GameObject("BarContainer");
@@ -139,14 +139,14 @@ public class BossHealthBar : MonoBehaviour
         brt.anchoredPosition = new Vector2(0f, 0f);
         brt.sizeDelta        = new Vector2(BAR_W, BAR_H);
 
-        // Capa 1: barra vacía — 0%.png, siempre visible
+        // Layer 1: empty bar — 0%.png, always visible
         var bgGO  = MakeRect("HPBar_Empty", barGO.transform);
         var bgImg = bgGO.AddComponent<Image>();
         if (emptyBarSprite != null)
         {
             bgImg.sprite         = emptyBarSprite;
             bgImg.type           = Image.Type.Simple;
-            bgImg.preserveAspect = false;   // el sizeDelta ya mantiene el ratio correcto
+            bgImg.preserveAspect = false;   // sizeDelta already maintains the correct ratio
         }
         else
         {
@@ -154,7 +154,7 @@ public class BossHealthBar : MonoBehaviour
         }
         StretchFull(bgGO.GetComponent<RectTransform>());
 
-        // Capa 2: barra llena — 100%.png, se recorta de derecha a izquierda
+        // Layer 2: full bar — 100%.png, clips from right to left
         var fillGO = MakeRect("HPBar_Fill", barGO.transform);
         _hpFill   = fillGO.AddComponent<Image>();
         if (fullBarSprite != null)
@@ -174,7 +174,7 @@ public class BossHealthBar : MonoBehaviour
         }
         StretchFull(fillGO.GetComponent<RectTransform>());
 
-        // Texto de fase desactivado — _phaseText queda null; HandlePhaseChanged hace null check.
+        // Phase text is disabled — _phaseText remains null; HandlePhaseChanged null-checks it.
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -198,7 +198,7 @@ public class BossHealthBar : MonoBehaviour
     {
         if (_hpFill == null) yield break;
         var prev = _hpFill.color;
-        _hpFill.color = new Color(1f, 0.35f, 0.35f);   // tinte rojo breve al recibir daño
+        _hpFill.color = new Color(1f, 0.35f, 0.35f);   // brief red tint on damage taken
         yield return new WaitForSeconds(0.07f);
         _hpFill.color = prev;
     }
@@ -206,12 +206,12 @@ public class BossHealthBar : MonoBehaviour
     private IEnumerator FadeOut(float delay = 0f)
     {
         if (_canvasGroup == null) yield break;
-        if (_canvasGroup.alpha <= 0f) yield break;  // ya invisible, no hacer nada
+        if (_canvasGroup.alpha <= 0f) yield break;  // already invisible, nothing to do
         yield return new WaitForSeconds(delay);
         float t = 0f;
         while (t < 1f)
         {
-            t += Time.deltaTime * 2f;   // 0.5s de fade
+            t += Time.deltaTime * 2f;   // 0.5s fade
             _canvasGroup.alpha = 1f - t;
             yield return null;
         }

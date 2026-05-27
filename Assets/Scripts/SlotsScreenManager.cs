@@ -5,48 +5,48 @@ using UnityEngine.Video;
 using TMPro;
 using System.Collections;
 
-// State Machine — cada slot es autónomo; hacer clic actúa directamente.
-// Observer     — los botones de restart/delete reaccionan al estado del slot.
+// State Machine — each slot is self-contained; clicking acts directly.
+// Observer     — restart/delete buttons react to the slot's state.
 public class SlotsScreenManager : MonoBehaviour
 {
     [System.Serializable]
     public class SlotUI
     {
-        public Button          cardButton;      // clic → nueva partida o continuar
-        public GameObject      emptyState;      // "?" visual, activo cuando vacío
-        public GameObject      occupiedState;   // silueta/imagen, activo cuando lleno
-        public TextMeshProUGUI slotTitleText;   // "Slot X" (vacío) o zona+tiempo (lleno)
-        public TextMeshProUGUI subtitleText;    // "Nueva partida" o "Continuar partida"
-        public TextMeshProUGUI statusText;      // "Vacío" debajo de la tarjeta (solo vacío)
-        public Button          restartButton;   // reiniciar partida (solo lleno)
-        public Button          deleteButton;    // eliminar partida (solo lleno)
+        public Button          cardButton;      // click → new game or continue
+        public GameObject      emptyState;      // "?" visual, active when empty
+        public GameObject      occupiedState;   // silhouette/image, active when filled
+        public TextMeshProUGUI slotTitleText;   // "Slot X" (empty) or zone+time (filled)
+        public TextMeshProUGUI subtitleText;    // "Nueva partida" or "Continuar partida"
+        public TextMeshProUGUI statusText;      // "Vacío" below the card (empty only)
+        public Button          restartButton;   // restart game (filled only)
+        public Button          deleteButton;    // delete game (filled only)
     }
 
     [SerializeField] private SlotUI[] slots = new SlotUI[4];
 
-    [Header("Sprites — Slot vacío")]
+    [Header("Sprites — Empty slot")]
     [SerializeField] private Sprite _sprEmptyNormal;
     [SerializeField] private Sprite _sprEmptyHover;
     [SerializeField] private Sprite _sprEmptyPress;
 
-    [Header("Sprites — Slot lleno")]
+    [Header("Sprites — Filled slot")]
     [SerializeField] private Sprite _sprFilledNormal;
     [SerializeField] private Sprite _sprFilledHover;
     [SerializeField] private Sprite _sprFilledPress;
 
-    [Header("Navegación")]
+    [Header("Navigation")]
     [SerializeField] private Button backButton;
 
-    [Header("Video fondo")]
+    [Header("Background video")]
     [SerializeField] private VideoClip slotsBgClip;
 
-    [Header("Fondo")]
+    [Header("Background")]
     [SerializeField] private RawImage backgroundImage;
 
     [Header("Audio")]
     [SerializeField] private AudioSource ambienceSource;
 
-    [Header("Panel confirmación")]
+    [Header("Confirm panel")]
     [SerializeField] private GameObject confirmPanel;
     [SerializeField] private TextMeshProUGUI confirmText;
     [SerializeField] private Button confirmYes;
@@ -59,7 +59,7 @@ public class SlotsScreenManager : MonoBehaviour
     // ─────────────────────────────────────────────────────────────────────────
     void Start()
     {
-        // Auto-detectar backgroundImage si el inspector no lo tiene cableado
+        // Auto-detect backgroundImage if the Inspector left it unwired
         if (backgroundImage == null)
         {
             var bgT = transform.Find("Background");
@@ -120,7 +120,7 @@ public class SlotsScreenManager : MonoBehaviour
         };
     }
 
-    // ── Contenido de tarjeta ─────────────────────────────────────────────────
+    // ── Card content ──────────────────────────────────────────────────────────
     private void RefreshSlotUI(int idx)
     {
         bool filled = !_saves[idx].isEmpty;
@@ -134,21 +134,21 @@ public class SlotsScreenManager : MonoBehaviour
         if (filled)
         {
             string time = FormatTime(_saves[idx].playTimeSeconds);
-            if (slots[idx].slotTitleText  != null)
-                slots[idx].slotTitleText.text  = $"{_saves[idx].zoneName}  {time}";
-            if (slots[idx].subtitleText   != null)
-                slots[idx].subtitleText.text   = "Continuar partida";
+            if (slots[idx].slotTitleText != null)
+                slots[idx].slotTitleText.text = $"{_saves[idx].zoneName}  {time}";
+            if (slots[idx].subtitleText  != null)
+                slots[idx].subtitleText.text  = "Continuar partida";
         }
         else
         {
             if (slots[idx].slotTitleText != null)
-                slots[idx].slotTitleText.text  = $"Slot {idx + 1}";
+                slots[idx].slotTitleText.text = $"Slot {idx + 1}";
             if (slots[idx].subtitleText  != null)
-                slots[idx].subtitleText.text   = "Nueva partida";
+                slots[idx].subtitleText.text  = "Nueva partida";
         }
     }
 
-    // ── Acciones de tarjeta ──────────────────────────────────────────────────
+    // ── Card actions ──────────────────────────────────────────────────────────
     private void OnCardClick(int idx)
     {
         if (_saves[idx].isEmpty) StartNewGame(idx);
@@ -199,25 +199,25 @@ public class SlotsScreenManager : MonoBehaviour
         _pendingActionSlot = -1;
     }
 
-    // ── Partidas ─────────────────────────────────────────────────────────────
+    // ── Game sessions ─────────────────────────────────────────────────────────
     private void StartNewGame(int slot)
     {
-        // Limpiar zonas visitadas del mapa para que la nueva partida empiece sin descubrimientos
+        // Clear visited map zones so the new game starts with no discoveries
         WorldMapController.ClearAllVisited();
 
-        // health=5 explícito — evita heredar vidas de la partida anterior si el DDOL
-        // GameSaveController hace Flush antes de que CrystalRespawnManager lea el save.
+        // Explicit health=5 — prevents inheriting lives from a previous session if the DDOL
+        // GameSaveController flushes before CrystalRespawnManager reads the save.
         var data = new SaveData { isEmpty = false, slotName = $"Partida {slot + 1}", zoneName = "Inicio", health = 5 };
         SaveManager.Instance?.Save(slot, data);
         SaveManager.Instance?.SelectSlot(slot);
         CrystalRespawnManager.InvalidatePersistedLives();
 
-        // Resetear contadores de sesión del DDOL GameSaveController para que el tiempo
-        // acumulado de la partida anterior no se sume al nuevo juego.
+        // Reset session counters on the DDOL GameSaveController so accumulated time
+        // from the previous session doesn't carry over to the new game.
         GameSaveController.Instance?.ResetForNewGame();
 
-        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("Intro");
-        else SceneManager.LoadScene("Intro");
+        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene(EldoriaSceneNames.Intro);
+        else SceneManager.LoadScene(EldoriaSceneNames.Intro);
     }
 
     private void ContinueGame(int slot)
@@ -226,12 +226,12 @@ public class SlotsScreenManager : MonoBehaviour
         SaveManager.Instance?.SelectSlot(slot);
         CrystalRespawnManager.InvalidatePersistedLives();
 
-        // sanctuaryScene se usa solo para el respawn tras muerte (CrystalRespawnManager),
-        // no para determinar dónde cargar la partida — eso lo decide sceneName.
+        // sanctuaryScene is used only for death respawn (CrystalRespawnManager),
+        // not to determine where to load the save — that is decided by sceneName.
         PlayerSpawnManager.NextSpawnId = "default";
 
         string scene = (data != null && !string.IsNullOrEmpty(data.sceneName))
-            ? data.sceneName : "HV01_Interior";
+            ? data.sceneName : EldoriaSceneNames.HV01_Interior;
 
         if (SceneFader.Instance != null) SceneFader.Instance.LoadScene(scene);
         else SceneManager.LoadScene(scene);
@@ -239,18 +239,18 @@ public class SlotsScreenManager : MonoBehaviour
 
     private void OnBack()
     {
-        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene("MainMenu");
-        else SceneManager.LoadScene("MainMenu");
+        if (SceneFader.Instance != null) SceneFader.Instance.LoadScene(EldoriaSceneNames.MainMenu);
+        else SceneManager.LoadScene(EldoriaSceneNames.MainMenu);
     }
 
     // ── Background video ──────────────────────────────────────────────────────
-    // Dual-path: si viene de MainMenu usa BackgroundVideoManager (Singleton);
-    // si abre la escena directamente, levanta un VideoPlayer local.
+    // Dual-path: if coming from MainMenu uses BackgroundVideoManager (Singleton);
+    // if the scene opens directly, spins up a local VideoPlayer.
     private void SetupBackground()
     {
         if (BackgroundVideoManager.Instance != null)
         {
-            // Asignar la RT al RawImage directamente (no esperar a BackgroundVideoDisplay)
+            // Assign the RT to the RawImage directly (don't wait for BackgroundVideoDisplay)
             var bvp = BackgroundVideoManager.Instance.GetComponent<VideoPlayer>();
             if (bvp != null && backgroundImage != null)
             {
@@ -261,7 +261,7 @@ public class SlotsScreenManager : MonoBehaviour
         }
         else if (backgroundImage != null && slotsBgClip != null)
         {
-            // Sin BackgroundVideoManager — VideoPlayer local en el mismo GO del RawImage
+            // No BackgroundVideoManager — local VideoPlayer on the same GO as the RawImage
             var vp = backgroundImage.gameObject.GetComponent<VideoPlayer>();
             if (vp == null) vp = backgroundImage.gameObject.AddComponent<VideoPlayer>();
             vp.isLooping       = true;
@@ -271,7 +271,7 @@ public class SlotsScreenManager : MonoBehaviour
 
             var rt = new RenderTexture(Screen.width, Screen.height, 0);
             rt.Create();
-            vp.targetTexture      = rt;
+            vp.targetTexture        = rt;
             backgroundImage.texture = rt;
             vp.Play();
         }

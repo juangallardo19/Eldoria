@@ -1,12 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// Singleton DontDestroyOnLoad — gestiona el idioma activo y dispara evento global.
-///
-/// Patrones aplicados:
-///   Singleton     — instancia global persistente entre escenas.
-///   Observer      — OnLanguageChanged notifica a todos los LocalizedText.
-///   Flyweight     — tablas de cadenas compartidas, no duplicadas por objeto.
+// Singleton DontDestroyOnLoad — manages the active language and fires a global change event.
+// Patterns:
+//   Singleton  — global persistent instance across scenes.
+//   Observer   — OnLanguageChanged notifies all LocalizedText components.
+//   Flyweight  — shared string tables; not duplicated per object.
 public class LocalizationManager : MonoBehaviour
 {
     // ── Observer ──────────────────────────────────────────────────────────
@@ -17,13 +16,13 @@ public class LocalizationManager : MonoBehaviour
 
     public static string CurrentLanguage { get; private set; } = "es";
 
-    // ── Flyweight: tablas de cadenas compartidas ───────────────────────────
+    // ── Flyweight: shared string tables ───────────────────────────────────
     static readonly Dictionary<string, Dictionary<string, string>> _tables =
         new Dictionary<string, Dictionary<string, string>>
     {
         ["es"] = new Dictionary<string, string>
         {
-            // ── Menú principal ─────────────────────────────────────────────
+            // ── Main menu ──────────────────────────────────────────────────
             ["JUGAR"]     = "JUGAR",
             ["OPCIONES"]  = "OPCIONES",
             ["SALIR"]     = "SALIR",
@@ -38,21 +37,21 @@ public class LocalizationManager : MonoBehaviour
             ["Cancelar"]          = "Cancelar",
             ["¿Borrar partida?"]  = "¿Borrar partida?",
 
-            // ── Pestañas y navegación ─────────────────────────────────────
+            // ── Tabs and navigation ───────────────────────────────────────
             ["GRÁFICOS"]  = "GRÁFICOS",
             ["SONIDO"]    = "SONIDO",
             ["CONTROLES"] = "CONTROLES",
             ["AJUSTES"]   = "AJUSTES",
             ["VOLVER"]    = "VOLVER",
 
-            // ── Gráficos · Pantalla ────────────────────────────────────────
+            // ── Graphics · Display ────────────────────────────────────────
             ["Resolución"]      = "Resolución",
             ["Modo pantalla"]   = "Modo pantalla",
             ["FPS"]             = "FPS",
             ["VSync"]           = "VSync",
             ["Calidad"]         = "Calidad",
 
-            // Opciones de selección — pantalla
+            // Display selector options
             ["Pantalla completa"] = "Pantalla completa",
             ["Sin bordes"]        = "Sin bordes",
             ["Ventana"]           = "Ventana",
@@ -61,26 +60,26 @@ public class LocalizationManager : MonoBehaviour
             ["Medio"]             = "Medio",
             ["Alto"]              = "Alto",
 
-            // ── Gráficos · Visual ──────────────────────────────────────────
+            // ── Graphics · Visual ──────────────────────────────────────────
             ["Brillo"]      = "Brillo",
             ["Contraste"]   = "Contraste",
             ["Saturación"]  = "Saturación",
 
-            // ── Gráficos · Accesibilidad ───────────────────────────────────
+            // ── Graphics · Accessibility ───────────────────────────────────
             ["Daltonismo"]    = "Daltonismo",
             ["Protanopia"]    = "Protanopia",
             ["Deuteranopia"]  = "Deuteranopia",
             ["Tritanopia"]    = "Tritanopia",
             ["Intensidad"]    = "Intensidad",
 
-            // ── Sonido ─────────────────────────────────────────────────────
+            // ── Sound ──────────────────────────────────────────────────────
             ["Volumen maestro"]     = "Volumen maestro",
             ["Música"]              = "Música",
             ["Efectos de sonido"]   = "Efectos de sonido",
             ["Voces"]               = "Voces",
             ["Interfaz"]            = "Interfaz",
 
-            // ── Ajustes ────────────────────────────────────────────────────
+            // ── Settings ──────────────────────────────────────────────────
             ["Idioma"]         = "Idioma",
             ["Mostrar FPS"]    = "Mostrar FPS",
             ["Español"]        = "Español",
@@ -88,7 +87,7 @@ public class LocalizationManager : MonoBehaviour
             ["Sí"]             = "Sí",
             ["No"]             = "No",
 
-            // ── Separadores de sección ─────────────────────────────────────
+            // ── Section separators ─────────────────────────────────────────
             ["── Pantalla ──"]        = "── Pantalla ──",
             ["── Visual ──"]          = "── Visual ──",
             ["── Accesibilidad ──"]   = "── Accesibilidad ──",
@@ -96,7 +95,7 @@ public class LocalizationManager : MonoBehaviour
 
         ["en"] = new Dictionary<string, string>
         {
-            // ── Menú principal ─────────────────────────────────────────────
+            // ── Main menu ──────────────────────────────────────────────────
             ["JUGAR"]     = "PLAY",
             ["OPCIONES"]  = "OPTIONS",
             ["SALIR"]     = "QUIT",
@@ -111,21 +110,21 @@ public class LocalizationManager : MonoBehaviour
             ["Cancelar"]          = "Cancel",
             ["¿Borrar partida?"]  = "Erase save?",
 
-            // ── Pestañas y navegación ─────────────────────────────────────
+            // ── Tabs and navigation ───────────────────────────────────────
             ["GRÁFICOS"]  = "VISIONS",
             ["SONIDO"]    = "SOUNDCRAFT",
             ["CONTROLES"] = "COMMANDS",
             ["AJUSTES"]   = "DECREES",
             ["VOLVER"]    = "RETURN",
 
-            // ── Gráficos · Pantalla ────────────────────────────────────────
+            // ── Graphics · Display ────────────────────────────────────────
             ["Resolución"]    = "Canvas Size",
             ["Modo pantalla"] = "Window Form",
             ["FPS"]           = "Frame Count",
             ["VSync"]         = "VSync",
             ["Calidad"]       = "Render Quality",
 
-            // Opciones de selección — pantalla (inglés medieval)
+            // Display selector options (medieval English flavour)
             ["Pantalla completa"] = "Full Expanse",
             ["Sin bordes"]        = "Borderless",
             ["Ventana"]           = "Window",
@@ -134,26 +133,26 @@ public class LocalizationManager : MonoBehaviour
             ["Medio"]             = "Common",
             ["Alto"]              = "Grand",
 
-            // ── Gráficos · Visual ──────────────────────────────────────────
+            // ── Graphics · Visual ──────────────────────────────────────────
             ["Brillo"]     = "Luminance",
             ["Contraste"]  = "Shadow Depth",
             ["Saturación"] = "Colour Vividity",
 
-            // ── Gráficos · Accesibilidad ───────────────────────────────────
+            // ── Graphics · Accessibility ───────────────────────────────────
             ["Daltonismo"]   = "Colour Ailment",
             ["Protanopia"]   = "Protanopia",
             ["Deuteranopia"] = "Deuteranopia",
             ["Tritanopia"]   = "Tritanopia",
             ["Intensidad"]   = "Intensity",
 
-            // ── Sonido ─────────────────────────────────────────────────────
+            // ── Sound ──────────────────────────────────────────────────────
             ["Volumen maestro"]   = "Master Resound",
             ["Música"]            = "Minstrel Tunes",
             ["Efectos de sonido"] = "Battle Clamour",
             ["Voces"]             = "Spoken Word",
             ["Interfaz"]          = "Panel Marks",
 
-            // ── Ajustes ────────────────────────────────────────────────────
+            // ── Settings ──────────────────────────────────────────────────
             ["Idioma"]      = "Tongue",
             ["Mostrar FPS"] = "Show Frame Count",
             ["Español"]     = "Español",
@@ -161,7 +160,7 @@ public class LocalizationManager : MonoBehaviour
             ["Sí"]          = "Yea",
             ["No"]          = "Nay",
 
-            // ── Separadores ────────────────────────────────────────────────
+            // ── Section separators ─────────────────────────────────────────
             ["── Pantalla ──"]      = "── Display ──",
             ["── Visual ──"]        = "── Visual ──",
             ["── Accesibilidad ──"] = "── Accessibility ──",
@@ -173,26 +172,27 @@ public class LocalizationManager : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance        = this;
-        CurrentLanguage = PlayerPrefs.GetString("LangCode", "es");
+        CurrentLanguage = PlayerPrefs.GetString(EldoriaPrefsKeys.LangCode, "es");
         DontDestroyOnLoad(gameObject);
     }
 
-    // ── API pública ───────────────────────────────────────────────────────
-    /// Devuelve la cadena localizada para <paramref name="key"/> en el idioma activo.
-    /// Primero intenta coincidencia exacta; si falla, busca ignorando mayúsculas/minúsculas.
+    // ── Public API ────────────────────────────────────────────────────────
+
+    /// Returns the localised string for <paramref name="key"/> in the active language.
+    /// Tries an exact match first; falls back to a case-insensitive search.
     public static string Get(string key)
     {
         if (string.IsNullOrEmpty(key)) return key;
         if (!_tables.TryGetValue(CurrentLanguage, out var table)) return key;
         if (table.TryGetValue(key, out var value)) return value;
-        // Fallback case-insensitive: textos del juego pueden tener capitalización distinta a las claves
+        // Case-insensitive fallback: game text capitalisation may differ from table keys
         foreach (var pair in table)
             if (string.Equals(pair.Key, key, System.StringComparison.OrdinalIgnoreCase))
                 return pair.Value;
         return key;
     }
 
-    /// Devuelve true si <paramref name="key"/> está registrada en la tabla de localización.
+    /// Returns true if <paramref name="key"/> is registered in the localisation table.
     public static bool ContainsKey(string key)
     {
         if (string.IsNullOrEmpty(key)) return false;
@@ -209,11 +209,11 @@ public class LocalizationManager : MonoBehaviour
         string code = index == 0 ? "es" : "en";
         if (code == CurrentLanguage) return;
         CurrentLanguage = code;
-        PlayerPrefs.SetString("LangCode", code);
+        PlayerPrefs.SetString(EldoriaPrefsKeys.LangCode, code);
         OnLanguageChanged?.Invoke(code);
     }
 
-    // Crea la instancia si no existe aún (sin escena de arranque dedicada).
+    // Creates the instance if it doesn't exist yet (no dedicated startup scene required).
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void Bootstrap()
     {

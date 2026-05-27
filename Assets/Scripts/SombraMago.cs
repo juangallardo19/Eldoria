@@ -1,18 +1,18 @@
 using System.Collections;
 using UnityEngine;
 
-// Patrón: State Machine + Observer
-// Estados: Idle → Patrol → Chase → Attack → Hurt → Dead
+// Pattern: State Machine + Observer
+// States: Idle → Patrol → Chase → Attack → Hurt → Dead
 //
-// Comportamiento:
-//   · Patrulla entre patrolLeft y patrolRight.
-//   · Detecta al jugador a detectRange; lo persigue pero SE DETIENE a attackRange.
-//   · Lanza un SombraProyectil animado (proyectil que crece en vuelo) tras castDelay.
-//   · 30 HP: 3 golpes de combo1 para morir.
-//   · Flash rojo al recibir daño.
-//   · El jugador puede atravesarlo (Physics2D.IgnoreCollision en Start).
+// Behaviour:
+//   · Patrols between patrolLeft and patrolRight.
+//   · Detects the player at detectRange; chases but STOPS at attackRange.
+//   · Launches an animated SombraProyectil (projectile that grows in flight) after castDelay.
+//   · 30 HP: 3 combo1 hits to die.
+//   · Red flash on damage received.
+//   · The player can pass through it (Physics2D.IgnoreCollision in Start).
 //
-// Animación por código (Sprite[]): no requiere Animator ni AnimationClip.
+// Code-driven animation (Sprite[]): no Animator or AnimationClip required.
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
 public class SombraMago : MonoBehaviour, IDamageable
@@ -21,36 +21,36 @@ public class SombraMago : MonoBehaviour, IDamageable
 
     // ── Stats ──────────────────────────────────────────────────────────────────
     [Header("Stats")]
-    [SerializeField] private int   maxHP         = 30;    // 3 hits de combo1 (10 dmg c/u)
+    [SerializeField] private int   maxHP         = 30;    // 3 combo1 hits (10 dmg each)
     [SerializeField] private float detectRange   = 18f;
     [SerializeField] private float loseRange     = 24f;
-    [SerializeField] private float attackRange   = 10f;   // dispara desde lejos
+    [SerializeField] private float attackRange   = 10f;   // fires from range
     [SerializeField] private float patrolSpeed   = 1.8f;
     [SerializeField] private float chaseSpeed    = 3f;
     [SerializeField] private float attackCooldown = 2.5f;
-    [SerializeField] private float castDelay     = 0.5f;  // tiempo de carga antes de disparar
+    [SerializeField] private float castDelay     = 0.5f;  // charge time before firing
 
-    [Header("Patrulla — límites en X (world space)")]
+    [Header("Patrol — X bounds (world space)")]
     [SerializeField] private float patrolLeft  = -10f;
     [SerializeField] private float patrolRight = +10f;
 
-    // ── Animación ──────────────────────────────────────────────────────────────
-    [Header("Frames de animación (asignados por SetupSombraMago)")]
+    // ── Animation ──────────────────────────────────────────────────────────────
+    [Header("Animation frames (assigned by SetupSombraMago)")]
     [SerializeField] private Sprite[] idleFrames;
-    [SerializeField] private Sprite[] attackFrames;  // atack sombra1-6: animación del cuerpo al lanzar
+    [SerializeField] private Sprite[] attackFrames;  // atack sombra1-6: body animation while casting
     [SerializeField] private Sprite[] hurtFrames;
 
-    [Header("FPS de cada animación")]
+    [Header("FPS per animation")]
     [SerializeField] private float idleFps   = 8f;
-    [SerializeField] private float attackFps = 9f;   // 6 frames / 9fps ≈ 0.67s (castDelay=0.4s dispara en frame 4)
+    [SerializeField] private float attackFps = 9f;   // 6 frames / 9fps ≈ 0.67s (castDelay=0.4s fires on frame 4)
     [SerializeField] private float hurtFps   = 8f;
 
-    // ── Proyectil ──────────────────────────────────────────────────────────────
+    // ── Projectile ─────────────────────────────────────────────────────────────
     [Header("Proyectil")]
     [SerializeField] private GameObject projectilePrefab;
     [SerializeField] private int        projectileDamage = 1;
 
-    // ── Estado interno ─────────────────────────────────────────────────────────
+    // ── Internal state ────────────────────────────────────────────────────────
     private MagoState    _state;
     private int          _hp;
     private SpriteRenderer _sr;
@@ -73,7 +73,7 @@ public class SombraMago : MonoBehaviour, IDamageable
     private float _patrolDir = 1f;
     private float _facingDir = 1f;
 
-    // ── Ciclo de vida ──────────────────────────────────────────────────────────
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     void Awake()
     {
@@ -90,7 +90,7 @@ public class SombraMago : MonoBehaviour, IDamageable
         _rb.freezeRotation         = true;
         _rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
-        // El jugador puede atravesar al mago (no bloquea ni actúa como plataforma)
+        // The player can pass through the mage (it doesn't block or act as a platform)
         if (_player != null)
         {
             var bodyCol    = GetComponent<BoxCollider2D>();
@@ -150,7 +150,7 @@ public class SombraMago : MonoBehaviour, IDamageable
         {
             _attackElapsed += Time.deltaTime;
 
-            // Disparar el proyectil tras el castDelay
+            // Fire the projectile after castDelay
             if (!_projectileFired && _attackElapsed >= castDelay)
             {
                 _projectileFired = true;
@@ -169,7 +169,7 @@ public class SombraMago : MonoBehaviour, IDamageable
 
         if (_state == MagoState.Attack)
         {
-            // Salir del estado Attack solo después de haber disparado + breve pausa
+            // Leave Attack state only after firing + brief pause
             if (_projectileFired && _attackElapsed >= castDelay + 0.3f)
                 TransitionTo(GetStateByDistance());
             return;
@@ -190,7 +190,7 @@ public class SombraMago : MonoBehaviour, IDamageable
         return MagoState.Patrol;
     }
 
-    // ── Transiciones ──────────────────────────────────────────────────────────
+    // ── Transitions ───────────────────────────────────────────────────────────
 
     private void TransitionTo(MagoState next)
     {
@@ -211,8 +211,8 @@ public class SombraMago : MonoBehaviour, IDamageable
                 break;
 
             case MagoState.Attack:
-                // Frames del cuerpo del mago durante el lanzamiento (atack sombra1-6).
-                // Si no están asignados, usa idle como fallback.
+                // Mage body frames during casting (atack sombra1-6).
+                // If not assigned, falls back to idle.
                 var atkAnim = (attackFrames != null && attackFrames.Length > 0) ? attackFrames : idleFrames;
                 PlayAnim(atkAnim, attackFps);
                 _attackCooldownTimer = attackCooldown;
@@ -235,19 +235,19 @@ public class SombraMago : MonoBehaviour, IDamageable
         }
     }
 
-    // ── Proyectil ─────────────────────────────────────────────────────────────
+    // ── Projectile ────────────────────────────────────────────────────────────
 
     private void FireProjectile()
     {
         if (projectilePrefab == null || _player == null) return;
 
-        // Disparar desde el centro del cuerpo (offset del BoxCollider en world space)
-        // para que el proyectil no nazca en el suelo y se autodestruya de inmediato.
+        // Fire from the body centre (BoxCollider offset in world space) so the projectile
+        // doesn't spawn at the floor and immediately self-destruct.
         var bodyCol = GetComponent<BoxCollider2D>();
         float ctrY  = bodyCol != null ? bodyCol.offset.y * transform.lossyScale.y : 1.3f;
 
         Vector2 origin = (Vector2)transform.position + new Vector2(0f, ctrY);
-        // Apuntar al centro del jugador; si está demasiado cerca garantizar dirección horizontal
+        // Aim at the player's centre; if too close, guarantee a horizontal direction
         float rawDx = _player.position.x - transform.position.x;
         float aimX  = Mathf.Abs(rawDx) < 0.5f ? _facingDir : rawDx;
         Vector2 target = new Vector2(transform.position.x + aimX, _player.position.y + ctrY);
@@ -258,7 +258,7 @@ public class SombraMago : MonoBehaviour, IDamageable
         proj?.Launch(dir, projectileDamage);
     }
 
-    // ── Animación ─────────────────────────────────────────────────────────────
+    // ── Animation ─────────────────────────────────────────────────────────────
 
     private void PlayAnim(Sprite[] frames, float fps)
     {
@@ -290,7 +290,7 @@ public class SombraMago : MonoBehaviour, IDamageable
             _sr.sprite = _curAnim[_frameIdx];
     }
 
-    // ── Dirección ─────────────────────────────────────────────────────────────
+    // ── Facing direction ──────────────────────────────────────────────────────
 
     private void UpdateFacing()
     {
@@ -307,7 +307,7 @@ public class SombraMago : MonoBehaviour, IDamageable
         _sr.flipX = _facingDir < 0f;
     }
 
-    // ── Efectos visuales ──────────────────────────────────────────────────────
+    // ── Visual effects ────────────────────────────────────────────────────────
 
     private IEnumerator HurtFlash()
     {
@@ -344,7 +344,7 @@ public class SombraMago : MonoBehaviour, IDamageable
         Gizmos.color = new Color(0f, 1f, 0f, 0.25f);
         Gizmos.DrawWireSphere(transform.position, detectRange);
 
-        Gizmos.color = new Color(0.5f, 0.2f, 1f, 0.35f);  // púrpura = rango mágico
+        Gizmos.color = new Color(0.5f, 0.2f, 1f, 0.35f);  // purple = magic range
         Gizmos.DrawWireSphere(transform.position, attackRange);
 
         Gizmos.color = Color.yellow;

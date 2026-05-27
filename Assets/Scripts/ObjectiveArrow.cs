@@ -2,8 +2,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-// Patrón Observer — flecha en pantalla que apunta hacia un objetivo en el mundo.
-// Cuando el objetivo está en pantalla muestra ▼ sobre él; si está fuera, en el borde.
+// Pattern: Observer — on-screen arrow pointing at a world-space target.
+// When the target is on-screen shows ▼ above it; when off-screen, shows on the screen edge.
 public class ObjectiveArrow : MonoBehaviour
 {
     public static ObjectiveArrow Instance { get; private set; }
@@ -99,7 +99,7 @@ public class ObjectiveArrow : MonoBehaviour
         _group              = cvGO.AddComponent<CanvasGroup>();
         _group.interactable = false;
         _group.blocksRaycasts = false;
-        cvGO.AddComponent<CanvasScaler>();   // 1:1 pixel, sin CanvasScaler extra
+        cvGO.AddComponent<CanvasScaler>();   // 1:1 pixel, no extra CanvasScaler needed
         cvGO.AddComponent<GraphicRaycaster>();
 
         var go  = new GameObject("Arrow");

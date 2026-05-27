@@ -1,8 +1,8 @@
 using UnityEngine;
 
-// Marcador para paredes de arena del boss (pattern: Command).
-// BossObsesion.WakeUpSequence habilita todos los ArenaBarrier al iniciar la pelea.
-// BossObsesion.DefeatedSequence los deshabilita al terminar.
-// El GO debe estar INACTIVO por defecto en escena (el jugador puede pasar libremente antes del boss).
+// Marker for boss arena walls (pattern: Command).
+// BossObsesion.WakeUpSequence enables all ArenaBarriers when the fight starts.
+// BossObsesion.DefeatedSequence disables them when the fight ends.
+// The GO must be INACTIVE by default in the scene (player passes freely before the boss).
 [DisallowMultipleComponent]
 public class ArenaBarrier : MonoBehaviour { }

@@ -3,11 +3,11 @@ using UnityEditor;
 using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
 
-// Patrón Command — menús editor para crear animaciones idle de NPCs y colocarlos en escena.
-// Cada NPC tiene su propio menú; todos usan el mismo método genérico CreateNPC().
+// Pattern: Command — editor menus for creating NPC idle animations and placing them in the scene.
+// Each NPC has its own menu; all use the same generic CreateNPC() method.
 public static class SetupNPCs
 {
-    // ── Durgan en HV01_Exterior ───────────────────────────────────────────
+    // ── Durgan in HV01_Exterior ───────────────────────────────────────────
     [MenuItem("Eldoria/NPCs/Setup Durgan (HV01_Exterior)")]
     public static void SetupDurgan()
     {
@@ -16,7 +16,7 @@ public static class SetupNPCs
                   "HV01_Exterior", new Vector3(-40f, -26f, 0f));
     }
 
-    // ── Lyara en HV05 ─────────────────────────────────────────────────────
+    // ── Lyara in HV05 ────────────────────────────────────────────────────
     [MenuItem("Eldoria/NPCs/Setup Lyara (HV05)")]
     public static void SetupLyara()
     {
@@ -25,7 +25,7 @@ public static class SetupNPCs
                   "HV05", new Vector3(0f, -20f, 0f));
     }
 
-    // ── Método genérico ───────────────────────────────────────────────────
+    // ── Generic method ────────────────────────────────────────────────────
     private static void CreateNPC(string goName, string animName,
                                   string spritePrefix, int frameCount,
                                   string requiredScene, Vector3 position)
@@ -34,7 +34,7 @@ public static class SetupNPCs
         if (scene.name != requiredScene)
         {
             EditorUtility.DisplayDialog("Eldoria",
-                $"Abre la escena '{requiredScene}' antes de ejecutar este menú.", "OK");
+                $"Open the '{requiredScene}' scene before running this menu.", "OK");
             return;
         }
 
@@ -46,7 +46,7 @@ public static class SetupNPCs
             frames[i] = AssetDatabase.LoadAssetAtPath<Sprite>(path);
             if (frames[i] == null)
             {
-                Debug.LogError($"[SetupNPCs] Sprite no encontrado: {path}");
+                Debug.LogError($"[SetupNPCs] Sprite not found: {path}");
                 return;
             }
         }
@@ -100,7 +100,7 @@ public static class SetupNPCs
         if (existing != null)
         {
             GameObject.DestroyImmediate(existing);
-            Debug.Log($"[SetupNPCs] {goName} existente eliminado y recreado.");
+            Debug.Log($"[SetupNPCs] Existing {goName} removed and recreated.");
         }
 
         var npc = new GameObject(goName);
@@ -114,7 +114,7 @@ public static class SetupNPCs
         animator.runtimeAnimatorController = ctrl;
 
         EditorSceneManager.MarkSceneDirty(scene);
-        Debug.Log($"[SetupNPCs] {goName} colocado en '{scene.name}' en {position}. " +
-                  "Ajusta posición en Scene View si es necesario.");
+        Debug.Log($"[SetupNPCs] {goName} placed in '{scene.name}' at {position}. " +
+                  "Adjust position in Scene View if needed.");
     }
 }

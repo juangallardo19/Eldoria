@@ -1,19 +1,19 @@
 using System.Collections;
 using UnityEngine;
 
-// Patrón: State Machine + Observer
-// Estados: Idle → Patrol → Chase → Attack → Hurt → Dead
+// Pattern: State Machine + Observer
+// States: Idle → Patrol → Chase → Attack → Hurt → Dead
 //
-// Comportamiento:
-//   · Patrulla entre patrolLeft y patrolRight.
-//   · Al detectar al jugador (detectRange) cambia a Chase.
-//   · Al entrar en attackRange lanza un ataque con arco amplio (BossAttackHitbox en frame hitboxActiveFrame).
-//   · La hitbox se voltea automáticamente con _facingDir para apuntar siempre al frente.
-//   · Recibe daño de PlayerCombat vía IDamageable.TakeDamage.
-//   · 30 HP: 3 golpes de combo1 (10 dmg c/u) para matar.
-//   · Flash rojo al recibir daño como retroalimentación visual.
+// Behaviour:
+//   · Patrols between patrolLeft and patrolRight.
+//   · Switches to Chase when the player enters detectRange.
+//   · At attackRange, executes a wide-arc attack (BossAttackHitbox on hitboxActiveFrame).
+//   · The hitbox is flipped automatically with _facingDir to always point forward.
+//   · Receives damage from PlayerCombat via IDamageable.TakeDamage.
+//   · 30 HP: 3 combo1 hits (10 dmg each) to die.
+//   · Red flash on damage as visual feedback.
 //
-// Animación por código (Sprite[]): no requiere Animator ni AnimationClip.
+// Code-driven animation (Sprite[]): no Animator or AnimationClip required.
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
 public class SombraNinja : MonoBehaviour, IDamageable
@@ -22,61 +22,61 @@ public class SombraNinja : MonoBehaviour, IDamageable
 
     // ── Stats ──────────────────────────────────────────────────────────────────
     [Header("Stats")]
-    [SerializeField] private int   maxHP        = 30;   // 3 hits de combo1 (10 dmg) = muerte
+    [SerializeField] private int   maxHP        = 30;   // 3 combo1 hits (10 dmg) = death
     [SerializeField] private float detectRange  = 15f;
     [SerializeField] private float loseRange    = 22f;
-    [SerializeField] private float attackRange  = 5.5f;  // ataca desde lejos (arco de arma largo)
+    [SerializeField] private float attackRange  = 5.5f;  // attacks from range (long weapon arc)
     [SerializeField] private float patrolSpeed  = 2f;
     [SerializeField] private float chaseSpeed   = 3.5f;
     [SerializeField] private float attackCooldown = 3.5f;
 
-    [Header("Patrulla — límites en X (world space)")]
+    [Header("Patrol — X bounds (world space)")]
     [SerializeField] private float patrolLeft  = -10f;
     [SerializeField] private float patrolRight = +10f;
 
     // ── Animación ──────────────────────────────────────────────────────────────
-    [Header("Frames de animación (asignados por SetupSombraNinja)")]
+    [Header("Animation frames (assigned by SetupSombraNinja)")]
     [SerializeField] private Sprite[] idleFrames;
     [SerializeField] private Sprite[] attackFrames;
     [SerializeField] private Sprite[] deathFrames;
 
-    [Header("FPS de cada animación")]
+    [Header("FPS per animation")]
     [SerializeField] private float idleFps   = 8f;
-    [SerializeField] private float attackFps = 5f;   // reducido para que el ataque sea visible y más lento
+    [SerializeField] private float attackFps = 5f;   // lowered so the attack is visible and slower
     [SerializeField] private float deathFps  = 8f;
 
     // ── Hitbox de ataque ───────────────────────────────────────────────────────
-    [Header("Hitbox de ataque (hijo con BossAttackHitbox)")]
+    [Header("Attack hitbox (child with BossAttackHitbox)")]
     [SerializeField] private BossAttackHitbox attackHitbox;
     [SerializeField] private int   attackDamage      = 1;
-    [SerializeField] private int   hitboxActiveFrame = 3;  // frame 0-indexado que activa el hitbox (más temprano = más alcance)
+    [SerializeField] private int   hitboxActiveFrame = 3;  // 0-indexed frame that activates the hitbox (earlier = more reach)
 
-    // ── Estado interno ─────────────────────────────────────────────────────────
+    // ── Internal state ────────────────────────────────────────────────────────
     private NinjaState    _state;
     private int           _hp;
     private SpriteRenderer _sr;
     private Rigidbody2D    _rb;
     private Transform      _player;
 
-    // Animación
+    // Animation
     private Sprite[] _curAnim;
     private float    _curFps;
     private int      _frameIdx;
     private float    _frameTimer;
 
-    // Temporizadores
+    // Timers
     private float _attackCooldownTimer;
     private float _hurtTimer;
-    private float _attackDuration;   // duración total del ataque en segundos
-    private float _attackElapsed;    // tiempo transcurrido en estado Attack
+    private float _attackDuration;   // total attack state duration in seconds
+    private float _attackElapsed;    // time elapsed in Attack state
 
-    // Dirección
+    // Facing direction
     private float         _patrolDir = 1f;
     private float         _facingDir = 1f;
     private bool          _hitboxFiredThisAttack;
-    private BoxCollider2D _attackHitboxCol;  // offset.x se invierte con _facingDir
+    private BoxCollider2D _attackHitboxCol;  // offset.x is flipped with _facingDir
 
-    // ── Ciclo de vida ──────────────────────────────────────────────────────────
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     void Awake()
     {
@@ -93,9 +93,9 @@ public class SombraNinja : MonoBehaviour, IDamageable
         _rb.freezeRotation        = true;
         _rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
-        // El jugador puede atravesar al ninja: ignorar colisión física entre
-        // el collider de cuerpo del ninja y todos los colliders del jugador.
-        // Así el ninja NO actúa como plataforma ni bloquea el movimiento.
+        // The player can pass through the ninja: ignore physics collision between
+        // the ninja's body collider and all player colliders.
+        // The ninja does NOT act as a platform or block movement.
         if (_player != null)
         {
             var bodyCol    = GetComponent<BoxCollider2D>();
@@ -104,7 +104,7 @@ public class SombraNinja : MonoBehaviour, IDamageable
                 Physics2D.IgnoreCollision(bodyCol, pc, true);
         }
 
-        // Cachear el BoxCollider2D del hitbox de ataque para poder voltear su offset.x
+        // Cache the BoxCollider2D of the attack hitbox so its offset.x can be flipped
         if (attackHitbox != null)
             _attackHitboxCol = attackHitbox.GetComponent<BoxCollider2D>();
 
@@ -143,7 +143,7 @@ public class SombraNinja : MonoBehaviour, IDamageable
         _rb.velocity = new Vector2(vx, _rb.velocity.y);
     }
 
-    // ── Lógica del State Machine ───────────────────────────────────────────────
+    // ── State machine logic ───────────────────────────────────────────────────
 
     private void TickTimers()
     {
@@ -157,13 +157,13 @@ public class SombraNinja : MonoBehaviour, IDamageable
         {
             _attackElapsed += Time.deltaTime;
 
-            // Activar hitbox en el frame correcto
+            // Activate hitbox on the correct frame
             if (!_hitboxFiredThisAttack && _frameIdx >= hitboxActiveFrame)
             {
                 _hitboxFiredThisAttack = true;
                 attackHitbox?.Activate(attackDamage);
             }
-            // Desactivar hitbox 0.2 s después de activarlo
+            // Deactivate hitbox 0.2s after activating it
             if (_hitboxFiredThisAttack && _attackElapsed > (hitboxActiveFrame / Mathf.Max(attackFps, 1f)) + 0.2f)
                 attackHitbox?.Deactivate();
         }
@@ -171,14 +171,14 @@ public class SombraNinja : MonoBehaviour, IDamageable
 
     private void DecideState()
     {
-        // Hurt: bloqueado hasta que expire
+        // Hurt: locked until it expires
         if (_state == NinjaState.Hurt)
         {
             if (_hurtTimer <= 0f) TransitionTo(GetStateByDistance());
             return;
         }
 
-        // Attack: bloqueado hasta que termine la animación
+        // Attack: locked until the animation finishes
         if (_state == NinjaState.Attack)
         {
             if (_attackElapsed >= _attackDuration)
@@ -204,13 +204,13 @@ public class SombraNinja : MonoBehaviour, IDamageable
         return NinjaState.Patrol;
     }
 
-    // ── Transiciones ──────────────────────────────────────────────────────────
+    // ── Transitions ───────────────────────────────────────────────────────────
 
     private void TransitionTo(NinjaState next)
     {
         if (_state == next) return;
 
-        // Limpieza al salir del ataque
+        // Cleanup when leaving Attack
         if (_state == NinjaState.Attack) attackHitbox?.Deactivate();
 
         _state                 = next;
@@ -252,7 +252,7 @@ public class SombraNinja : MonoBehaviour, IDamageable
         }
     }
 
-    // ── Animación ─────────────────────────────────────────────────────────────
+    // ── Animation ─────────────────────────────────────────────────────────────
 
     private void PlayAnim(Sprite[] frames, float fps)
     {
@@ -284,7 +284,7 @@ public class SombraNinja : MonoBehaviour, IDamageable
             _sr.sprite = _curAnim[_frameIdx];
     }
 
-    // ── Dirección ─────────────────────────────────────────────────────────────
+    // ── Facing direction ─────────────────────────────────────────────────────
 
     private void UpdateFacing()
     {
@@ -300,8 +300,8 @@ public class SombraNinja : MonoBehaviour, IDamageable
 
         _sr.flipX = _facingDir < 0f;
 
-        // Voltear el offset.x del hitbox para que siempre apunte al frente.
-        // flipX solo voltea el sprite; el BoxCollider2D no se mueve solo.
+        // Flip the hitbox offset.x so it always points forward.
+        // flipX only flips the sprite; the BoxCollider2D doesn't move with it.
         if (_attackHitboxCol != null)
         {
             var off = _attackHitboxCol.offset;
@@ -310,12 +310,12 @@ public class SombraNinja : MonoBehaviour, IDamageable
         }
     }
 
-    // ── Efectos visuales ──────────────────────────────────────────────────────
+    // ── Visual effects ────────────────────────────────────────────────────────
 
     private IEnumerator HurtFlash()
     {
         Color original = _sr.color;
-        Color redTint  = new Color(1f, 0.25f, 0.25f, 1f);  // filtro rojo indicador de daño recibido
+        Color redTint  = new Color(1f, 0.25f, 0.25f, 1f);  // red tint signals damage received
         for (int i = 0; i < 3; i++)
         {
             _sr.color = redTint;
@@ -339,20 +339,20 @@ public class SombraNinja : MonoBehaviour, IDamageable
             TransitionTo(NinjaState.Hurt);
     }
 
-    // ── Gizmos de debug ───────────────────────────────────────────────────────
+    // ── Debug gizmos ─────────────────────────────────────────────────────────
 
 #if UNITY_EDITOR
     void OnDrawGizmosSelected()
     {
-        // Rango de detección (verde)
+        // Detection range (green)
         Gizmos.color = new Color(0f, 1f, 0f, 0.25f);
         Gizmos.DrawWireSphere(transform.position, detectRange);
 
-        // Rango de ataque (rojo)
+        // Attack range (red)
         Gizmos.color = new Color(1f, 0.2f, 0.2f, 0.35f);
         Gizmos.DrawWireSphere(transform.position, attackRange);
 
-        // Zona de patrulla (amarillo)
+        // Patrol zone (yellow)
         Gizmos.color = Color.yellow;
         Vector3 floor = transform.position;
         Gizmos.DrawLine(new Vector3(patrolLeft,  floor.y, 0f),

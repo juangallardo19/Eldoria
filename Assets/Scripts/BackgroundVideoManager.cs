@@ -1,12 +1,10 @@
 using UnityEngine;
 using UnityEngine.Video;
 
-/// Singleton que mantiene el VideoPlayer del fondo entre escenas.
-///
-/// Patrón Singleton con DontDestroyOnLoad — igual que AudioManager.
-/// El VideoPlayer renderiza siempre a la misma RenderTexture; cualquier
-/// RawImage en cualquier escena que use esa textura ve el cuadro actual
-/// sin reiniciar el video.
+// Singleton that keeps the background VideoPlayer alive across scenes.
+// Pattern: Singleton + DontDestroyOnLoad — mirrors AudioManager.
+// The VideoPlayer always renders to the same RenderTexture; any RawImage
+// in any scene using that texture sees the current frame without restarting the video.
 [RequireComponent(typeof(VideoPlayer))]
 public class BackgroundVideoManager : MonoBehaviour
 {
@@ -21,12 +19,12 @@ public class BackgroundVideoManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
 
         _vp = GetComponent<VideoPlayer>();
-        _vp.playOnAwake     = false; // Controlamos el Play manualmente en Start
+        _vp.playOnAwake     = false; // Play is controlled manually in Start
         _vp.isLooping       = true;
         _vp.audioOutputMode = VideoAudioOutputMode.None;
 
-        // renderMode no se puede cambiar mientras el video está reproduciendo,
-        // por eso desactivamos playOnAwake y configuramos la RT antes de Play().
+        // renderMode cannot be changed while the video is playing, so we disable
+        // playOnAwake and configure the RT before calling Play().
         if (_vp.targetTexture == null)
         {
             _vp.Stop();
@@ -46,7 +44,7 @@ public class BackgroundVideoManager : MonoBehaviour
 
     public RenderTexture TargetTexture => _vp.targetTexture;
 
-    // Cambia el clip que se reproduce (útil para que cada escena tenga su propio video de fondo).
+    // Swaps the playing clip (useful for per-scene background videos).
     public void SwitchClip(UnityEngine.Video.VideoClip clip)
     {
         if (clip == null) return;

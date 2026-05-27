@@ -4,8 +4,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-// Patrón Singleton DDOL + Command — panel de diálogo ancho en la parte superior de la pantalla.
-// Show(pages, onComplete) encapsula la conversación; onComplete se llama al terminar.
+// Pattern Singleton DDOL + Command — wide dialogue panel at the top of the screen.
+// Show(pages, onComplete) encapsulates the conversation; onComplete is called when it ends.
 public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance { get; private set; }
@@ -22,7 +22,7 @@ public class DialogueManager : MonoBehaviour
         public string text;
     }
 
-    // ── Layout (referencia 1920×1080) ──────────────────────────────────────
+    // ── Layout (reference 1920×1080) ──────────────────────────────────────
     const float PANEL_H       = 200f;
     const float PANEL_PAD_Y   = 0f;     // pegado al borde superior
     const float PORTRAIT_SIZE = 160f;
@@ -75,7 +75,7 @@ public class DialogueManager : MonoBehaviour
             Advance();
     }
 
-    // ── API pública ────────────────────────────────────────────────────────
+    // ── Public API ────────────────────────────────────────────────────────
 
     public void Show(DialoguePage[] pages, Action onComplete = null)
     {
@@ -88,7 +88,7 @@ public class DialogueManager : MonoBehaviour
         ShowPage(0);
     }
 
-    // ── Lógica interna ─────────────────────────────────────────────────────
+    // ── Internal logic ─────────────────────────────────────────────────────
 
     void Advance()
     {
@@ -130,7 +130,7 @@ public class DialogueManager : MonoBehaviour
         {
             _bodyLabel.text += c;
             charIdx++;
-            // Sonido de typing cada 2 caracteres no espacios
+            // Typing sound every 2 non-space characters
             if (charIdx % 2 == 0 && c != ' ' && _typingSource != null && _typingBeep != null)
                 _typingSource.PlayOneShot(_typingBeep);
             yield return new WaitForSecondsRealtime(delay);
@@ -152,7 +152,7 @@ public class DialogueManager : MonoBehaviour
 
     void SetVisible(bool v) { if (_group != null) _group.alpha = v ? 1f : 0f; }
 
-    // ── Construcción de UI ─────────────────────────────────────────────────
+    // ── UI construction ────────────────────────────────────────────────────
 
     void BuildUI()
     {
@@ -172,20 +172,20 @@ public class DialogueManager : MonoBehaviour
         sc.matchWidthOrHeight  = 0.5f;
         cvGO.AddComponent<GraphicRaycaster>();
 
-        // ── Panel ancho completo ─────────────────────────────────────────
+        // ── Full-width panel ─────────────────────────────────────────────
         var panelGO = Rect("Panel", cvGO.transform);
         var panelRt = panelGO.GetComponent<RectTransform>();
         panelRt.anchorMin        = new Vector2(0f, 1f);
         panelRt.anchorMax        = new Vector2(1f, 1f);
         panelRt.pivot            = new Vector2(0.5f, 1f);
         panelRt.anchoredPosition = new Vector2(0f, -PANEL_PAD_Y);
-        panelRt.sizeDelta        = new Vector2(0f, PANEL_H);  // ancho = stretch full
+        panelRt.sizeDelta        = new Vector2(0f, PANEL_H);  // width = full stretch
 
         var bg       = panelGO.AddComponent<Image>();
         bg.color     = new Color(0f, 0f, 0f, 0.93f);
         bg.raycastTarget = false;
 
-        // Línea separadora inferior sutil
+        // Subtle bottom separator line
         var lineGO = Rect("BottomLine", panelGO.transform);
         var lineRt = lineGO.GetComponent<RectTransform>();
         lineRt.anchorMin        = new Vector2(0f, 0f);
@@ -197,7 +197,7 @@ public class DialogueManager : MonoBehaviour
         lineImg.color = new Color(0.4f, 0.4f, 0.4f, 0.5f);
         lineImg.raycastTarget = false;
 
-        // ── Retrato ──────────────────────────────────────────────────────
+        // ── Portrait ─────────────────────────────────────────────────────
         var portGO = Rect("Portrait", panelGO.transform);
         var portRt = portGO.GetComponent<RectTransform>();
         portRt.anchorMin        = new Vector2(0f, 0.5f);
@@ -211,7 +211,7 @@ public class DialogueManager : MonoBehaviour
 
         float textX = INNER_PAD + PORTRAIT_SIZE + INNER_PAD;
 
-        // ── Nombre del hablante ──────────────────────────────────────────
+        // ── Speaker name ─────────────────────────────────────────────────
         var nameGO = Rect("Name", panelGO.transform);
         var nameRt = nameGO.GetComponent<RectTransform>();
         nameRt.anchorMin        = new Vector2(0f, 1f);
@@ -224,7 +224,7 @@ public class DialogueManager : MonoBehaviour
         _nameLabel.fontStyle    = FontStyles.Bold;
         SetFont(_nameLabel);
 
-        // ── Cuerpo del texto ─────────────────────────────────────────────
+        // ── Body text ────────────────────────────────────────────────────
         float bodyY = -(INNER_PAD + NAME_H + 6f);
         float bodyH = PANEL_H - INNER_PAD - NAME_H - 6f - INNER_PAD;
         var bodyGO = Rect("Body", panelGO.transform);
@@ -240,7 +240,7 @@ public class DialogueManager : MonoBehaviour
         _bodyLabel.overflowMode = TextOverflowModes.Overflow;
         SetFont(_bodyLabel);
 
-        // ── Hint continuar ───────────────────────────────────────────────
+        // ── Continue hint ────────────────────────────────────────────────
         var hintGO = Rect("Hint", panelGO.transform);
         var hintRt = hintGO.GetComponent<RectTransform>();
         hintRt.anchorMin        = new Vector2(1f, 0f);
@@ -256,7 +256,7 @@ public class DialogueManager : MonoBehaviour
         SetFont(hintTmp);
     }
 
-    // ── Audio de typing ────────────────────────────────────────────────────
+    // ── Typing audio ──────────────────────────────────────────────────────
 
     void BuildTypingAudio()
     {
@@ -270,13 +270,13 @@ public class DialogueManager : MonoBehaviour
     static AudioClip CreateBeep()
     {
         const int SAMPLE_RATE = 22050;
-        const int SAMPLES     = 512;   // ~23ms — corto y sutil
+        const int SAMPLES     = 512;   // ~23ms — short and subtle
         var clip = AudioClip.Create("TypingBeep", SAMPLES, 1, SAMPLE_RATE, false);
         var data = new float[SAMPLES];
         for (int i = 0; i < SAMPLES; i++)
         {
             float t        = (float)i / SAMPLE_RATE;
-            float envelope = 1f - (float)i / SAMPLES;  // fade out lineal
+            float envelope = 1f - (float)i / SAMPLES;  // linear fade out
             data[i] = Mathf.Sin(2f * Mathf.PI * 900f * t) * envelope * 0.25f;
         }
         clip.SetData(data, 0);

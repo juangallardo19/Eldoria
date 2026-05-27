@@ -3,21 +3,21 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 
-// Singleton + Observer + State — menú de pausa global persistente entre escenas.
-// La UI (Canvas/botones) se crea desde el editor script "Eldoria/Add Pause Menu"
-// y queda serializada en MainMenu.unity, editable desde el Inspector de Unity.
-// Patrón Observer: SceneManager.sceneLoaded detecta si la nueva escena tiene Player.
-// Patrón State: _isPaused + ShowButtons/ShowConfirm gestionan los sub-paneles.
+// Singleton + Observer + State — global pause menu persisting across scenes.
+// The UI (Canvas/buttons) is built by the "Eldoria/Add Pause Menu" editor script
+// and serialized in MainMenu.unity, editable from the Unity Inspector.
+// Pattern Observer: SceneManager.sceneLoaded detects whether the new scene has a Player.
+// Pattern State: _isPaused + ShowButtons/ShowConfirm manage the sub-panels.
 public class PauseMenuManager : MonoBehaviour
 {
     public static PauseMenuManager Instance { get; private set; }
 
-    // Escena a la que volver cuando el jugador cierra Settings desde la pausa.
-    // SettingsManager lo lee en su botón Back.
+    // Scene to return to when the player closes Settings from the pause menu.
+    // Read by SettingsManager in its Back button handler.
     public static string ReturnScene { get; set; }
 
-    // Referencias a la jerarquía UI — asignadas por el editor script.
-    // Para editar tamaños: abre MainMenu.unity → Hierarchy → PauseMenuManager → Overlay → Container.
+    // UI hierarchy references — assigned by the editor script.
+    // To resize: open MainMenu.unity → Hierarchy → PauseMenuManager → Overlay → Container.
     [SerializeField] private GameObject overlay;
     [SerializeField] private GameObject buttonsGroup;
     [SerializeField] private GameObject confirmGroup;
@@ -27,7 +27,7 @@ public class PauseMenuManager : MonoBehaviour
 
     public bool IsPaused => _isPaused;
 
-    // ─── Ciclo de vida ────────────────────────────────────────────────────────
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
@@ -35,7 +35,7 @@ public class PauseMenuManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         SceneManager.sceneLoaded += OnSceneLoaded;
 
-        // Persiste el EventSystem del MainMenu para que los botones funcionen en otras escenas
+        // Persist the MainMenu EventSystem so buttons work in subsequent scenes
         var es = FindObjectOfType<EventSystem>();
         if (es != null) DontDestroyOnLoad(es.gameObject);
 
@@ -48,24 +48,23 @@ public class PauseMenuManager : MonoBehaviour
     {
         if (_isPaused) Resume();
 
-        // Cursor: visible en menús, oculto durante gameplay (CheckForPlayer lo confirma)
-        if (scene.name == "MainMenu")
+        // Cursor: visible in menus, hidden during gameplay (CheckForPlayer confirms it)
+        if (scene.name == EldoriaSceneNames.MainMenu)
         {
             Cursor.visible   = true;
             Cursor.lockState = CursorLockMode.None;
         }
-        // Nota: la música por escena la gestiona ZoneMusicController exclusivamente
 
         StartCoroutine(CheckForPlayer());
     }
 
-    // Espera un frame para que PlayerSpawnManager coloque al jugador
+    // Waits one frame for PlayerSpawnManager to place the player
     IEnumerator CheckForPlayer()
     {
         yield return null;
         _canPause = FindObjectOfType<PlayerController>() != null;
 
-        // Ocultar cursor durante gameplay; mostrarlo en menús
+        // Hide cursor during gameplay; show it in menus
         Cursor.visible   = !_canPause;
         Cursor.lockState = _canPause ? CursorLockMode.Confined : CursorLockMode.None;
     }
@@ -77,14 +76,14 @@ public class PauseMenuManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape)) Toggle();
     }
 
-    // Pausa automática al perder el foco (alt-tab / click fuera de la ventana)
+    // Auto-pause on focus loss (alt-tab / click outside window)
     void OnApplicationFocus(bool hasFocus)
     {
         if (!hasFocus && _canPause && !_isPaused)
             Pause();
     }
 
-    // ─── Estado ───────────────────────────────────────────────────────────────
+    // ── State ─────────────────────────────────────────────────────────────────
     public void Toggle() { if (_isPaused) Resume(); else Pause(); }
 
     void Pause()
@@ -110,17 +109,19 @@ public class PauseMenuManager : MonoBehaviour
         }
     }
 
-    // ─── Acciones de botones (llamadas desde Button.onClick en Inspector) ──────
+    // ── Button callbacks (invoked from Button.onClick in the Inspector) ───────
+    // IMPORTANT: do NOT rename these methods — their names are stored as strings
+    // in serialized scene YAML and renaming them silently breaks the buttons.
     public void OnContinuar() => Resume();
 
     public void OnAjustes()
     {
         ReturnScene = SceneManager.GetActiveScene().name;
         Resume();
-        // Yendo a Settings: el cursor debe verse para navegar los menús
+        // Going to Settings: cursor must be visible for menu navigation
         Cursor.visible   = true;
         Cursor.lockState = CursorLockMode.None;
-        SceneFader.Instance?.LoadScene("Settings");
+        SceneFader.Instance?.LoadScene(EldoriaSceneNames.Settings);
     }
 
     public void OnSalir()
@@ -131,10 +132,10 @@ public class PauseMenuManager : MonoBehaviour
 
     public void OnConfirmarSalir()
     {
-        // Detener música ANTES del fade para que no siga sonando durante la transición
+        // Stop music BEFORE the fade so it doesn't keep playing during the transition
         AudioManager.Instance?.StopMusic();
         Resume();
-        SceneFader.Instance?.LoadScene("MainMenu");
+        SceneFader.Instance?.LoadScene(EldoriaSceneNames.MainMenu);
     }
 
     public void OnCancelarSalir() => ShowButtons();

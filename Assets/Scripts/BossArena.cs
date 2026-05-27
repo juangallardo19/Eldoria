@@ -1,17 +1,17 @@
 using UnityEngine;
 
-// Patrón Observer — bloquea al jugador dentro del arena cuando el boss despierta.
-// Se suscribe a BossObsesion.OnPhaseChanged: al llegar a Phase1 activa los muros
-// físicos y desactiva las SceneBoundary para que el jugador no pueda escapar.
-// Al morir el boss (OnBossDead) revierte todo.
-// Las referencias se asignan en Inspector o, si están vacías, se buscan por nombre en Start().
+// Pattern: Observer — locks the player inside the arena when the boss wakes.
+// Subscribes to BossObsesion.OnPhaseChanged: on Phase1, activates the physical walls
+// and deactivates SceneBoundary so the player cannot escape.
+// On boss death (OnBossDead), reverts everything.
+// References are assigned in Inspector or searched by name in Start() if empty.
 public class BossArena : MonoBehaviour
 {
-    [Header("Muros físicos del arena")]
+    [Header("Arena physics walls")]
     [SerializeField] private GameObject wallLeft;
     [SerializeField] private GameObject wallRight;
 
-    [Header("Fronteras de escena")]
+    [Header("Scene boundaries")]
     [SerializeField] private GameObject boundaryLeft;
     [SerializeField] private GameObject boundaryRight;
 
@@ -22,7 +22,7 @@ public class BossArena : MonoBehaviour
         if (boundaryLeft  == null) boundaryLeft  = GameObject.Find("SceneBoundary_Left");
         if (boundaryRight == null) boundaryRight = GameObject.Find("SceneBoundary_Right");
 
-        // Estado inicial: muros apagados, fronteras activas
+        // Initial state: walls off, boundaries active
         SetLocked(false);
     }
 

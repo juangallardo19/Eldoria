@@ -1,28 +1,28 @@
 using System;
 using UnityEngine;
 
-// State Machine — estados: Idle, Walking, Running, Jumping, Falling, Dashing, WallSliding, WallJumping
-// PlayerAnimator observa las propiedades públicas de estado para actualizar el Animator.
+// State Machine — states: Idle, Walking, Running, Jumping, Falling, Dashing, WallSliding, WallJumping
+// PlayerAnimator observes public state properties each frame to drive the Animator.
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(BoxCollider2D))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("Movimiento")]
+    [Header("Movement")]
     [SerializeField] private float walkSpeed = 8f;
     [SerializeField] private float runSpeed  = 16f;
 
-    [Header("Salto")]
-    [SerializeField] private float jumpMinForce   = 13f;   // fuerza al tap rápido
-    [SerializeField] private float jumpForce      = 18f;   // fuerza máxima al mantener Z
-    [SerializeField] private float jumpHoldTime   = 0.3f;  // segundos máximos de hold
-    [SerializeField] private float jumpHoldBoost  = 30f;   // aceleración extra mientras se mantiene Z
+    [Header("Jump")]
+    [SerializeField] private float jumpMinForce   = 13f;   // force on quick tap
+    [SerializeField] private float jumpForce      = 18f;   // max force when holding Z
+    [SerializeField] private float jumpHoldTime   = 0.3f;  // max hold duration in seconds
+    [SerializeField] private float jumpHoldBoost  = 30f;   // extra acceleration while holding Z
     [SerializeField] private float coyoteTime     = 0.15f;
     [SerializeField] private float jumpBufferTime = 0.15f;
     [SerializeField] private float fallMultiplier = 2.0f;
     [SerializeField] private float lowJumpMult    = 1.5f;
 
-    [Header("Caída acelerada")]
-    [SerializeField] private float fastFallAccel  = 30f;   // aceleración extra al presionar ↓ mientras cae
+    [Header("Fast Fall")]
+    [SerializeField] private float fastFallAccel  = 30f;   // extra downward acceleration when pressing ↓ while falling
 
     [Header("Dash")]
     [SerializeField] private float dashForce    = 45f;
@@ -33,28 +33,28 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float wallSlideSpeed  = 1.5f;
     [SerializeField] private Vector2 wallJumpForce = new Vector2(9f, 16f);
 
-    [Header("Combate — ralentización al atacar")]
-    [SerializeField] private float attackWalkMult = 0.45f; // fracción de walkSpeed cuando se ataca caminando
+    [Header("Combat — slow on attack")]
+    [SerializeField] private float attackWalkMult = 0.45f; // fraction of walkSpeed while attacking on ground
 
-    [Header("Float (Bioma 4)")]
+    [Header("Float (Biome 4)")]
     [SerializeField] private float floatGravity = 0.3f;
     [SerializeField] private float floatMaxTime = 3f;
 
-    [Header("Habilidades — se desbloquean por progreso")]
+    [Header("Abilities — unlocked through progression")]
     public bool hasDoubleJump = false;
     public bool hasWallClimb  = false;
     public bool hasFloat      = false;
     public bool hasTeleport   = false;
     public bool hasDash       = false;
 
-    [Header("Detección de suelo y pared")]
+    [Header("Ground and Wall Detection")]
     [SerializeField] private Transform groundCheck;
     [SerializeField] private Transform wallCheckL;
     [SerializeField] private Transform wallCheckR;
     [SerializeField] private float     checkRadius = 0.12f;
     [SerializeField] private LayerMask groundLayer;
 
-    // ── Eventos estáticos (Observer — TutorialGate se suscribe) ──────────
+    // ── Observer events (TutorialGate subscribes to these) ───────────────────
     public static event Action OnPlayerMoved;
     public static event Action OnPlayerJumped;
     public static event Action OnPlayerHeldJump;
@@ -62,7 +62,7 @@ public class PlayerController : MonoBehaviour
     public static event Action OnPlayerDropped;
     public static event Action OnPlayerRan;
 
-    // ── Estado público (leído por PlayerAnimator) ─────────────────────────
+    // ── Public state (read by PlayerAnimator) ─────────────────────────────────
     public bool  IsGrounded    { get; private set; }
     public bool  IsRunning     { get; private set; }
     public bool  IsJumping     { get; private set; }
@@ -79,17 +79,17 @@ public class PlayerController : MonoBehaviour
     private Vector3 _baseScale;
     private bool  _runningMode;
 
-    // Salto variable + momentum aéreo
-    private bool  _jumpHolding;       // Z está siendo mantenido tras el salto
-    private float _jumpHoldTimer;     // tiempo restante de hold
-    private float _airSpeed;          // velocidad horizontal bloqueada al saltar
-    private bool  _isJumpAirborne;    // true si el aire es resultado de un salto (no caída libre)
+    // Variable jump + air momentum
+    private bool  _jumpHolding;       // Z is held after the initial jump press
+    private float _jumpHoldTimer;     // remaining hold time
+    private float _airSpeed;          // horizontal speed locked at jump moment
+    private bool  _isJumpAirborne;    // true when airborne from a jump (not free fall)
 
     private bool  usedDoubleJump;
     private float coyoteCounter;
     private float jumpBufferCounter;
     private bool  isDashingInternal;
-    private bool  _airDashUsed;        // dash consumido en el aire; se resetea al tocar suelo
+    private bool  _airDashUsed;        // dash consumed in air; resets on landing
     private float dashTimer;
     private float dashCooldownTimer;
     private bool  isOnWallL, isOnWallR;
@@ -97,10 +97,10 @@ public class PlayerController : MonoBehaviour
     private float floatTimer;
     private bool  _isOnRamp;
 
-    // Buffer de contactos reutilizable (sin GC por frame)
+    // Reusable contact buffer — avoids GC allocation per frame
     private readonly ContactPoint2D[] _contacts = new ContactPoint2D[8];
 
-    [Header("Sonidos del jugador")]
+    [Header("Player Sounds")]
     [SerializeField] private AudioClip jumpClip;
     [SerializeField] private AudioClip landClip;
     [SerializeField] private AudioClip walkClip;
@@ -108,9 +108,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private AudioClip attackClip;
     [SerializeField] private AudioClip hurtClip;
 
-    private AudioSource _sfxSource;   // one-shots (salto, aterrizaje, ataque, daño, pasos)
+    private AudioSource _sfxSource;   // one-shots (jump, land, attack, hurt, footsteps)
     private bool        _wasGrounded;
-    private float       _airtime;           // tiempo consecutivo en el aire
+    private float       _airtime;           // consecutive time spent airborne
     [SerializeField] private float minAirtimeForLandSound = 0.25f;
 
     void Awake()
@@ -121,16 +121,15 @@ public class PlayerController : MonoBehaviour
         _baseScale = transform.localScale;
         groundLayer = 1 << 8;
 
-        // Garantizar que el HUD de vidas exista en cualquier escena con jugador.
-        // PlayerLivesHUD es DontDestroyOnLoad; si ya existe de una escena anterior, este Awake no hace nada.
+        // Ensure a PlayerLivesHUD exists in any scene that has a player.
+        // PlayerLivesHUD is DontDestroyOnLoad; if it already exists from a previous scene this is a no-op.
         if (FindObjectOfType<PlayerLivesHUD>() == null)
             new GameObject("PlayerLivesHUD").AddComponent<PlayerLivesHUD>();
 
-        // AudioSource para one-shots (salto, aterrizaje, ataque, daño, pasos)
         _sfxSource             = gameObject.AddComponent<AudioSource>();
         _sfxSource.playOnAwake = false;
 
-        // Auto-cargar clips desde Resources/Audio/Player/ si no están asignados en Inspector.
+        // Auto-load clips from Resources/Audio/Player/ if not assigned in Inspector.
         if (jumpClip   == null) jumpClip   = Resources.Load<AudioClip>("Audio/Player/jump");
         if (landClip   == null) landClip   = Resources.Load<AudioClip>("Audio/Player/land");
         if (walkClip   == null) walkClip   = Resources.Load<AudioClip>("Audio/Player/walk");
@@ -141,7 +140,7 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
-        // Restaurar dash si el boss ya fue derrotado en esta partida
+        // Restore dash ability if the boss was already defeated in this save
         if (SaveManager.ActiveSlot >= 0 && SaveManager.Instance != null)
         {
             var saved = SaveManager.Instance.Load(SaveManager.ActiveSlot);
@@ -154,7 +153,7 @@ public class PlayerController : MonoBehaviour
     {
         UpdateChecks();
 
-        // Bloquear todo input del jugador mientras hay diálogo activo
+        // Block all player input while dialogue is active
         if (DialogueManager.IsActive) { ApplyBetterGravity(); return; }
 
         if (isDashingInternal)
@@ -168,7 +167,7 @@ public class PlayerController : MonoBehaviour
 
         if (dashCooldownTimer > 0f) dashCooldownTimer -= Time.deltaTime;
 
-        // Run toggle solo en suelo — no se puede cambiar velocidad en el aire
+        // Run toggle only on ground — cannot change speed mid-air
         if (IsGrounded && Input.GetKeyDown(GetKey("Run", KeyCode.LeftShift)))
         {
             _runningMode = !_runningMode;
@@ -180,8 +179,7 @@ public class PlayerController : MonoBehaviour
             ? jumpBufferTime
             : jumpBufferCounter - Time.deltaTime;
 
-        // Detectar aterrizaje: solo suena si el jugador estuvo suficiente tiempo en el aire.
-        // Evita que el sonido se dispare por micro-contactos con plataformas o rampas.
+        // Land sound: only plays after sufficient airtime to avoid triggering on micro-contacts.
         if (!IsGrounded) _airtime += Time.deltaTime;
         if (IsGrounded && !_wasGrounded)
         {
@@ -203,10 +201,10 @@ public class PlayerController : MonoBehaviour
         UpdateStateFlags();
     }
 
-    // ── Detección ──────────────────────────────────────────────────────────
+    // ── Detection ─────────────────────────────────────────────────────────────
     private void UpdateChecks()
     {
-        // Contactos del rigidbody: normal.y > 0.5 = superficie pisable
+        // Rigidbody contacts: normal.y > 0.5 = walkable surface
         int contactCount = rb.GetContacts(_contacts);
         IsGrounded = false;
         _isOnRamp  = false;
@@ -215,7 +213,7 @@ public class PlayerController : MonoBehaviour
             if (_contacts[i].normal.y > 0.5f)
             {
                 IsGrounded = true;
-                // Detecta superficie inclinada (rampa) por la componente X de la normal
+                // Detect inclined surface (ramp) by the X component of the contact normal
                 if (Mathf.Abs(_contacts[i].normal.x) > 0.1f)
                     _isOnRamp = true;
             }
@@ -236,11 +234,11 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ── Movimiento horizontal ──────────────────────────────────────────────
+    // ── Horizontal movement ───────────────────────────────────────────────────
     private void HandleMovement()
     {
-        // Ataque en suelo: ralentiza el movimiento en vez de bloquearlo.
-        // Corriendo → baja a walkSpeed; Caminando → baja a walkSpeed * attackWalkMult.
+        // Attack on ground: slows movement instead of blocking it entirely.
+        // Running → drops to walkSpeed; Walking → drops to walkSpeed * attackWalkMult.
         if (_combat != null && _combat.IsAttacking && IsGrounded)
         {
             float hAtk = 0f;
@@ -257,18 +255,18 @@ public class PlayerController : MonoBehaviour
         if (Input.GetKey(GetKey("MoveLeft",  KeyCode.A)) || Input.GetKey(KeyCode.LeftArrow))  h = -1f;
         if (Input.GetKey(GetKey("MoveRight", KeyCode.D)) || Input.GetKey(KeyCode.RightArrow)) h =  1f;
 
-        // Velocidad: en suelo usa modo actual; en aire usa la velocidad bloqueada al saltar
+        // Speed: on ground use current mode; in air use speed locked at jump moment
         float speed;
         if (IsGrounded)
             speed = _runningMode ? runSpeed : walkSpeed;
         else if (_isJumpAirborne)
-            speed = _airSpeed;   // bloqueada al momento del salto
+            speed = _airSpeed;   // locked at jump moment
         else
-            speed = _runningMode ? runSpeed : walkSpeed;  // caída libre desde plataforma: control normal
+            speed = _runningMode ? runSpeed : walkSpeed;  // free fall from platform: normal control
 
         if (!isFloating && !IsWallSliding)
         {
-            // En rampa sin input: para en seco para evitar el "salto residual"
+            // On ramp with no input: stop immediately to avoid residual bounce
             if (_isOnRamp && h == 0f)
                 rb.velocity = new Vector2(0f, 0f);
             else
@@ -285,7 +283,7 @@ public class PlayerController : MonoBehaviour
         IsRunning = IsGrounded && Mathf.Abs(h) > 0.05f && _runningMode;
     }
 
-    // ── Salto (+ variable height + double jump + wall jump) ───────────────
+    // ── Jump (+ variable height + double jump + wall jump) ────────────────────
     private void HandleJump()
     {
         bool wallPresent = (isOnWallL || isOnWallR) && hasWallClimb;
@@ -304,7 +302,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // Normal / coyote jump — bloquea velocidad horizontal al saltar
+        // Normal / coyote jump — locks horizontal speed at jump moment
         if (jumpBufferCounter > 0f && coyoteCounter > 0f)
         {
             rb.velocity       = new Vector2(rb.velocity.x, jumpMinForce);
@@ -331,8 +329,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ── Salto variable: hold Z para mayor altura ───────────────────────────
-    // Patrón: sin nombre formal — es un modificador de impulso basado en input continuo.
+    // ── Variable jump: hold Z for greater height ──────────────────────────────
     private void HandleJumpHold()
     {
         if (_combat != null && _combat.IsAttacking)
@@ -356,7 +353,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ── Caída acelerada + cancel de salto con ↓ ───────────────────────────
+    // ── Fast fall + cancel jump hold with ↓ ──────────────────────────────────
     private void HandleFastFall()
     {
         if (IsGrounded || isDashingInternal || isFloating) return;
@@ -364,20 +361,20 @@ public class PlayerController : MonoBehaviour
         bool downHeld = Input.GetKey(KeyCode.DownArrow)     || Input.GetKey(KeyCode.S);
         bool downDown = Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S);
 
-        // ↓ mientras se sube → cancela el hold del salto y detiene la subida
+        // ↓ while rising → cancels jump hold and stops upward velocity
         if (downDown && rb.velocity.y > 0f)
         {
             _jumpHolding = false;
             rb.velocity  = new Vector2(rb.velocity.x, 0f);
         }
 
-        // Aceleración extra hacia abajo mientras se cae
+        // Extra downward acceleration while falling with ↓ held
         if (rb.velocity.y < 0f && downHeld)
             rb.velocity += Vector2.down * fastFallAccel * Time.deltaTime;
     }
 
-    // ── Drop-through: ↓ mientras está en suelo sobre OneWayPlatform ─────────
-    // Delega el drop al componente OneWayPlatform (sistema propio, sin PlatformEffector2D).
+    // ── Drop-through: ↓ while grounded on a OneWayPlatform ───────────────────
+    // Delegates the drop to the OneWayPlatform component (custom system, no PlatformEffector2D).
     private void HandleDropThrough()
     {
         if (!IsGrounded) return;
@@ -408,20 +405,20 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ── Dash ───────────────────────────────────────────────────────────────
+    // ── Dash ──────────────────────────────────────────────────────────────────
     private void HandleDash()
     {
         if (!hasDash) return;
-        if (IsGrounded) _airDashUsed = false;   // aterrizó → puede volver a usar dash en el aire
+        if (IsGrounded) _airDashUsed = false;   // landed → air dash is available again
         if (!Input.GetKeyDown(GetKey("Dash", KeyCode.C))) return;
         if (dashCooldownTimer > 0f || isDashingInternal) return;
-        if (!IsGrounded && _airDashUsed) return;   // ya usó el dash en el aire
+        if (!IsGrounded && _airDashUsed) return;   // air dash already consumed
 
         isDashingInternal = true;
         dashTimer         = dashDuration;
         dashCooldownTimer = dashCooldown;
         isFloating        = false;
-        if (!IsGrounded) _airDashUsed = true;   // marcar dash aéreo como usado
+        if (!IsGrounded) _airDashUsed = true;
         rb.velocity       = new Vector2(FacingDir * dashForce, 0f);
         rb.gravityScale   = 0f;
     }
@@ -432,7 +429,7 @@ public class PlayerController : MonoBehaviour
         rb.gravityScale   = 1f;
     }
 
-    // ── Wall slide ─────────────────────────────────────────────────────────
+    // ── Wall slide ────────────────────────────────────────────────────────────
     private void HandleWallSlide()
     {
         if (!hasWallClimb || IsGrounded) { IsWallSliding = false; return; }
@@ -444,7 +441,7 @@ public class PlayerController : MonoBehaviour
             rb.velocity = new Vector2(rb.velocity.x, -wallSlideSpeed);
     }
 
-    // ── Float ──────────────────────────────────────────────────────────────
+    // ── Float ─────────────────────────────────────────────────────────────────
     private void HandleFloat()
     {
         if (!hasFloat) return;
@@ -468,29 +465,28 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ── Gravedad mejorada ─────────────────────────────────────────────────
+    // ── Enhanced gravity ──────────────────────────────────────────────────────
     private void ApplyBetterGravity()
     {
-        // Cuando está pisando suelo (incluye rampas), no aplicar gravedad extra:
-        // en rampa causaría contrafuerza vs la velocidad de subida.
+        // When grounded (including ramps), skip extra gravity to avoid fighting the slope force.
         if (isDashingInternal || isFloating || IsGrounded) return;
 
         if (rb.velocity.y < 0f)
             rb.velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1f) * Time.deltaTime;
         else if (rb.velocity.y > 0f && !Input.GetKey(GetKey("Jump", KeyCode.Z)))
-            // lowJumpMult no aplica si Z está presionado (HandleJumpHold está activo)
+            // lowJumpMult does not apply while Z is held (HandleJumpHold handles that case)
             rb.velocity += Vector2.up * Physics2D.gravity.y * (lowJumpMult - 1f) * Time.deltaTime;
     }
 
-    // ── Flags de estado para el Animator ──────────────────────────────────
+    // ── Animator state flags ──────────────────────────────────────────────────
     private void UpdateStateFlags()
     {
         IsJumping = !IsGrounded && rb.velocity.y > 0.1f;
         IsFalling = !IsGrounded && rb.velocity.y < -0.1f && !IsWallSliding;
     }
 
-    // ── Sonido de pasos — llamado por Animation Events en Walk.anim y Run.anim ─
-    // Agregar eventos en Unity: Animation window → frame de impacto del pie → función "OnFootstep".
+    // ── Footstep sound — called by Animation Events in Walk.anim and Run.anim ─
+    // Add events in Unity: Animation window → foot-impact frame → function "OnFootstep".
     public void OnFootstep()
     {
         if (!IsGrounded || isDashingInternal) return;
@@ -499,15 +495,15 @@ public class PlayerController : MonoBehaviour
         if (clip != null) _sfxSource.PlayOneShot(clip);
     }
 
-    // ── Sonidos de ataque y daño (llamados desde PlayerCombat / CrystalRespawnManager) ──
+    // ── Attack and hurt sounds (called from PlayerCombat / CrystalRespawnManager) ──
     public void PlayAttackSound() { if (attackClip != null) _sfxSource.PlayOneShot(attackClip); OnPlayerAttacked?.Invoke(); }
     public void PlayHurtSound()   { if (hurtClip   != null) _sfxSource.PlayOneShot(hurtClip);   }
 
-    // ── Running mode persistence across scenes ────────────────────────────
+    // ── Running mode persistence across scenes ────────────────────────────────
     public bool GetRunningMode() => _runningMode;
     public void SetRunningMode(bool v) { _runningMode = v; }
 
-    // ── Helpers de teclas reasignables ────────────────────────────────────
+    // ── Rebindable key helpers ────────────────────────────────────────────────
     private static KeyCode GetKey(string id, KeyCode def) => KeyRebindUI.GetKey(id, def);
 
     public KeyCode GetAttackKey()   => GetKey("Attack",   KeyCode.J);

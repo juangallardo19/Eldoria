@@ -1,51 +1,51 @@
 using UnityEngine;
 
-// Sistema de combos melee de Kael: X presionado → Combo1 → Combo2 → Combo3.
-// Patrón: State Machine — 4 estados (Idle=0, Combo1=1, Combo2=2, Combo3=3).
-// · Primer press de X inicia Combo1.
-// · Si X se presiona DURANTE la ventana de encadenado del golpe actual, el siguiente
-//   combo queda en buffer y se ejecuta automáticamente al terminar la animación.
-// · Tras Combo3 o si se deja expirar la ventana, vuelve a Idle.
+// Kael's melee combo system: press X → Combo1 → Combo2 → Combo3.
+// Pattern: State Machine — 4 states (Idle=0, Combo1=1, Combo2=2, Combo3=3).
+// · First X press starts Combo1.
+// · If X is pressed DURING the chain window of the current hit, the next
+//   combo is buffered and executes automatically when the animation ends.
+// · After Combo3, or if the chain window expires, reverts to Idle.
 //
-// Integración con Animator (KaelAnimator):
-//   Trigger "IsAttacking1" → estado Attack1
-//   Trigger "IsAttacking2" → estado Attack2
-//   Trigger "IsAttacking3" → estado Attack3
-//   Cada estado regresa a Idle por ExitTime (sin condición extra).
+// Animator integration (KaelAnimator):
+//   Trigger "IsAttacking1" → Attack1 state
+//   Trigger "IsAttacking2" → Attack2 state
+//   Trigger "IsAttacking3" → Attack3 state
+//   Each state returns to Idle by ExitTime (no extra condition).
 [RequireComponent(typeof(PlayerController))]
 public class PlayerCombat : MonoBehaviour
 {
-    [Header("Duración de cada golpe (reducida para ataques rápidos)")]
+    [Header("Duration of each hit")]
     [SerializeField] private float combo1Duration = 0.25f;
     [SerializeField] private float combo2Duration = 0.42f;
     [SerializeField] private float combo3Duration = 0.50f;
 
-    [Header("Ventana de encadenado (segundos antes del final del golpe)")]
+    [Header("Chain window (seconds before hit ends)")]
     [SerializeField] private float comboWindow = 0.18f;
 
-    [Header("Nombre del estado Idle en el Animator (para saltar animación de fin de ataque)")]
+    [Header("Idle state name in Animator (to skip attack-end animation)")]
     [SerializeField] private string idleStateName = "Idle";
 
-    [Header("Hitbox — hijo 'AttackHitbox' (se crea auto si está vacío)")]
+    [Header("Hitbox — 'AttackHitbox' child (auto-created if missing)")]
     [SerializeField] private BoxCollider2D hitbox;
     [SerializeField] private Vector2 hitboxOffset = new Vector2(2.0f, 1.0f);
     [SerializeField] private Vector2 hitboxSize   = new Vector2(6f, 4f);
 
-    [Header("Daño por golpe")]
+    [Header("Damage per hit")]
     [SerializeField] private int combo1Damage = 10;
     [SerializeField] private int combo2Damage = 15;
     [SerializeField] private int combo3Damage = 25;
 
-    [Header("Capa de enemigos (para detectar impactos)")]
+    [Header("Enemy layer (for hit detection)")]
     [SerializeField] private LayerMask enemyLayer;
 
     private Animator         _anim;
     private PlayerController _ctrl;
 
-    private int   _comboStep;    // 0=idle, 1/2/3 = combo activo
-    private float _comboTimer;   // tiempo restante del golpe actual
-    private bool  _nextQueued;   // X presionado durante ventana → ejecutar siguiente
-    private bool  _hitDealt;     // para marcar que ya se hizo daño en este swing
+    private int   _comboStep;    // 0=idle, 1/2/3 = active combo
+    private float _comboTimer;   // remaining time in current hit
+    private bool  _nextQueued;   // X pressed during chain window → execute next combo
+    private bool  _hitDealt;     // damage already applied this swing
 
     public static event System.Action OnCombo3Started;
 
@@ -69,26 +69,26 @@ public class PlayerCombat : MonoBehaviour
     {
         bool pressed = Input.GetKeyDown(KeyRebindUI.GetKey("Attack", KeyCode.X));
 
-        // ── Idle: iniciar combo ───────────────────────────────────────────────
+        // ── Idle: start combo ─────────────────────────────────────────────────
         if (_comboStep == 0)
         {
             if (pressed) StartCombo(1);
             return;
         }
 
-        // ── Golpe activo ──────────────────────────────────────────────────────
+        // ── Active hit ────────────────────────────────────────────────────────
         _comboTimer -= Time.deltaTime;
 
-        // Ventana de encadenado: última fracción del golpe acepta el input del siguiente
+        // Chain window: last fraction of the hit accepts input for the next combo
         bool inWindow = _comboTimer <= comboWindow;
         if (pressed && inWindow && _comboStep < 3)
             _nextQueued = true;
 
-        // Aplicar daño en el hit-frame (primer frame del golpe activo)
+        // Apply damage on hit-frame (first frame of the active hit)
         if (!_hitDealt)
             ApplyDamage();
 
-        // Fin del golpe
+        // End of hit
         if (_comboTimer <= 0f)
         {
             if (_nextQueued && _comboStep < 3)
@@ -116,7 +116,7 @@ public class PlayerCombat : MonoBehaviour
             }
         }
 
-        // La hitbox es hijo del jugador y hereda su scale flip — no multiplicar por FacingDir.
+        // Hitbox is a child of the player and inherits scale flip — do not multiply by FacingDir.
         if (hitbox != null)
         {
             hitbox.offset  = hitboxOffset;
@@ -135,7 +135,7 @@ public class PlayerCombat : MonoBehaviour
         if (_anim != null) _anim.Play(_hashIdle, 0, 0f);
     }
 
-    // ── Daño ──────────────────────────────────────────────────────────────────
+    // ── Damage ────────────────────────────────────────────────────────────────
     private void ApplyDamage()
     {
         _hitDealt = true;
@@ -144,14 +144,14 @@ public class PlayerCombat : MonoBehaviour
         int dmg = DamageOf(_comboStep);
         Vector2 center = hitbox.bounds.center;
 
-        // Si enemyLayer no está configurado en Inspector (valor 0 = Nothing),
-        // usar DefaultRaycastLayers para detectar cualquier IDamageable en escena.
+        // If enemyLayer is not configured in Inspector (value 0 = Nothing),
+        // fall back to DefaultRaycastLayers to detect any IDamageable in the scene.
         int mask = (int)enemyLayer != 0 ? (int)enemyLayer : Physics2D.DefaultRaycastLayers;
         var hits = Physics2D.OverlapBoxAll(center, hitbox.size, 0f, mask);
 
         foreach (var col in hits)
         {
-            if (col.gameObject == gameObject) continue;  // no dañarse a sí mismo
+            if (col.gameObject == gameObject) continue;  // don't damage self
             var dmgable = col.GetComponent<IDamageable>();
             if (dmgable != null) dmgable.TakeDamage(dmg);
         }
@@ -192,7 +192,7 @@ public class PlayerCombat : MonoBehaviour
         }
     }
 
-    // ── Estado público ────────────────────────────────────────────────────────
+    // ── Public state ──────────────────────────────────────────────────────────
     public bool IsAttacking => _comboStep > 0;
     public int  ComboStep   => _comboStep;
 

@@ -1,15 +1,15 @@
 using UnityEngine;
 
-// Efecto de post-proceso Built-in RP: brillo / contraste / saturación.
-// Patrón: Strategy — se adjunta a cualquier Camera y aplica el efecto en OnRenderImage.
-// ScreenEffectsManager lo añade/actualiza dinámicamente al Main Camera en cada escena.
+// Built-in RP post-process effect: brightness / contrast / saturation.
+// Pattern: Strategy — attach to any Camera and the effect is applied in OnRenderImage.
+// ScreenEffectsManager adds/updates this component on the Main Camera each scene load.
 [ExecuteAlways]
 [RequireComponent(typeof(Camera))]
 public class ScreenColorEffect : MonoBehaviour
 {
-    [Range(-0.5f,  0.5f)] public float brightness = 0f;  // neutro = 0
-    [Range(-0.5f,  0.5f)] public float contrast   = 0f;  // neutro = 0
-    [Range(-1f,    1f)]   public float saturation  = 0f;  // neutro = 0
+    [Range(-0.5f,  0.5f)] public float brightness = 0f;  // neutral = 0
+    [Range(-0.5f,  0.5f)] public float contrast   = 0f;  // neutral = 0
+    [Range(-1f,    1f)]   public float saturation  = 0f;  // neutral = 0
 
     Material _mat;
 
@@ -22,8 +22,8 @@ public class ScreenColorEffect : MonoBehaviour
         var shader = Shader.Find("Eldoria/ScreenColorEffect");
         if (shader == null)
         {
-            Debug.LogWarning("[ScreenColorEffect] Shader 'Eldoria/ScreenColorEffect' no encontrado. " +
-                             "Asegúrate de que Assets/Shaders/ScreenColorEffect.shader esté en el proyecto.");
+            Debug.LogWarning("[ScreenColorEffect] Shader 'Eldoria/ScreenColorEffect' not found. " +
+                             "Make sure Assets/Shaders/ScreenColorEffect.shader is in the project.");
             return;
         }
         _mat = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };

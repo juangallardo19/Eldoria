@@ -1,18 +1,18 @@
 using UnityEngine;
 
-// Define los límites de cámara con perfil escalonado para salas de techo irregular.
-// Patrón: Value Object — declara la forma del área válida como una curva lineal por tramos en X.
-// Ventaja sobre CameraBoundsZone múltiple: no hay saltos de zona — los límites de Y
-// se interpolan suavemente a medida que el jugador avanza horizontalmente.
+// Defines camera bounds with a stepped profile for rooms with irregular ceilings.
+// Pattern: Value Object — declares the valid area shape as a piecewise linear curve along X.
+// Advantage over multiple CameraBoundsZone: no zone-switch jumps — Y limits are
+// smoothly interpolated as the player moves horizontally.
 //
-// USO:
-//   Añadir a cualquier GameObject de la escena. CameraFollow lo detecta en Start automáticamente.
-//   Editar el array "steps" en Inspector: cada punto define (x, yMin, yMax) en espacio mundo.
-//   Los puntos deben estar ordenados de menor X a mayor X.
-//   El gizmo verde en Scene View muestra el perfil exacto del área válida.
+// USAGE:
+//   Add to any scene GameObject. CameraFollow auto-detects it in Start.
+//   Edit the "steps" array in the Inspector: each point defines (x, yMin, yMax) in world space.
+//   Points must be ordered from smallest X to largest X.
+//   The green gizmo in Scene View shows the exact valid-area profile.
 public class SteppedCameraBounds : MonoBehaviour
 {
-    [Tooltip("Puntos de control del área válida. Ordenar de izquierda (X menor) a derecha (X mayor).")]
+    [Tooltip("Control points of the valid area. Order from left (smallest X) to right (largest X).")]
     public BoundsStep[] steps = new BoundsStep[]
     {
         new BoundsStep { x = -58f, yMin = -16f, yMax =  8f },
@@ -25,7 +25,7 @@ public class SteppedCameraBounds : MonoBehaviour
     public float XMin => (steps != null && steps.Length > 0) ? steps[0].x : -30f;
     public float XMax => (steps != null && steps.Length > 0) ? steps[steps.Length - 1].x : 30f;
 
-    // Devuelve (x: yMin, y: yMax) interpolados según la posición X del jugador.
+    // Returns (x: yMin, y: yMax) interpolated for the player's X position.
     public Vector2 GetYBoundsAtX(float x)
     {
         if (steps == null || steps.Length == 0)
@@ -56,7 +56,7 @@ public class SteppedCameraBounds : MonoBehaviour
     {
         if (steps == null || steps.Length < 2) return;
 
-        // Perfil de techo y suelo
+        // Ceiling and floor profile
         Gizmos.color = new Color(0.1f, 0.95f, 0.25f, 0.85f);
         for (int i = 0; i < steps.Length - 1; i++)
         {
@@ -71,7 +71,7 @@ public class SteppedCameraBounds : MonoBehaviour
         Gizmos.DrawLine(new Vector3(steps[last].x, steps[last].yMin, 0),
                         new Vector3(steps[last].x, steps[last].yMax, 0));
 
-        // Relleno semitransparente por tramo
+        // Semi-transparent fill per segment
         Gizmos.color = new Color(0.1f, 0.95f, 0.25f, 0.06f);
         for (int i = 0; i < steps.Length - 1; i++)
         {
@@ -82,7 +82,7 @@ public class SteppedCameraBounds : MonoBehaviour
                             new Vector3(steps[i+1].x - steps[i].x, cyMx - cyMn, 0.1f));
         }
 
-        // Etiquetas de Y en cada punto de control
+        // Y labels at each control point
         var style = new GUIStyle
         {
             fontSize = 9,
@@ -104,10 +104,10 @@ public class SteppedCameraBounds : MonoBehaviour
 [System.Serializable]
 public struct BoundsStep
 {
-    [Tooltip("Posición X de este punto de control (espacio mundo)")]
+    [Tooltip("X position of this control point (world space)")]
     public float x;
-    [Tooltip("Límite inferior del área de cámara en esta X")]
+    [Tooltip("Lower camera bound at this X")]
     public float yMin;
-    [Tooltip("Límite superior del área de cámara en esta X")]
+    [Tooltip("Upper camera bound at this X")]
     public float yMax;
 }

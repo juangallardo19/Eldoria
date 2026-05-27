@@ -2,12 +2,12 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
-// Observer — escucha onValueChanged del Slider para actualizar fillAmount
-// en lugar del comportamiento por defecto que estira el RectTransform del Fill.
-// Efecto: la imagen de relleno se revela progresivamente (efecto "before/after")
-// sin deformarse ni salirse de los bordes.
-// Nota: la configuración del RectTransform se aplica un frame después del Awake
-// para que el DrivenRectTransformTracker del Slider libere el lock antes.
+// Pattern: Observer — listens to the Slider's onValueChanged to update fillAmount
+// instead of the default behaviour that stretches the Fill RectTransform.
+// Effect: the fill image is revealed progressively (before/after wipe)
+// without distorting or overflowing its borders.
+// Note: RectTransform setup runs one frame after Awake so the Slider's
+// DrivenRectTransformTracker releases its lock first.
 [RequireComponent(typeof(Slider))]
 public class SliderFillReveal : MonoBehaviour
 {
@@ -24,15 +24,15 @@ public class SliderFillReveal : MonoBehaviour
 
         if (_fillImage == null)
         {
-            Debug.LogWarning($"[SliderFillReveal] No se encontró Image en el Fill de '{name}'.", this);
+            Debug.LogWarning($"[SliderFillReveal] No Image found on Fill of '{name}'.", this);
             return;
         }
 
-        // Desconectar fillRect aquí para que el Slider no siga conduciendo el Fill.
+        // Disconnect fillRect so the Slider no longer drives the Fill.
         _slider.fillRect = null;
 
-        // Esperar un frame: el DrivenRectTransformTracker libera el lock después
-        // de que todos los Awake/OnEnable del frame actual terminen.
+        // Wait one frame: the DrivenRectTransformTracker releases its lock after
+        // all Awake/OnEnable calls of the current frame have completed.
         StartCoroutine(SetupNextFrame());
     }
 

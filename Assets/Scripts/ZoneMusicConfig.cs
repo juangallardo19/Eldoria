@@ -1,23 +1,23 @@
 using UnityEngine;
 
-// ScriptableObject que centraliza las referencias de clips de música por zona.
-// Se carga en runtime via Resources.Load("ZoneMusicConfig").
-// Ejecutar Eldoria/Setup Zone Music para crear y poblar el asset.
+// ScriptableObject centralising music clip references per zone.
+// Loaded at runtime via Resources.Load("ZoneMusicConfig").
+// Run Eldoria/Setup Zone Music to create and populate the asset.
 [CreateAssetMenu(menuName = "Eldoria/Zone Music Config")]
 public class ZoneMusicConfig : ScriptableObject
 {
-    [Header("Menú principal / SlotsScreen")]
+    [Header("Main menu / SlotsScreen")]
     public AudioClip menuMusic;
 
-    [Header("Zonas HV")]
+    [Header("HV zones")]
     public AudioClip hvMusic;
 
-    [Header("Zona Montañas (MTN01–MTN09)")]
+    [Header("Mountains zone (MTN01–MTN09)")]
     public AudioClip mtnMusic;
 
     [Header("Pre-Boss (PreMTN10)")]
     public AudioClip caveAmbience;
 
-    [Header("Sala del Boss (MTN10)")]
+    [Header("Boss arena (MTN10)")]
     public AudioClip bossMusic;
 }

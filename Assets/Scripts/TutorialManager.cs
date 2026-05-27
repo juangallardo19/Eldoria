@@ -4,9 +4,9 @@ using UnityEngine.SceneManagement;
 using TMPro;
 
 // Tutorial — Interior (intro + 4 gates) + Exterior (HoldJump, DropThrough, Durgan)
-//          + navegación al Mirador de Liara (HV05) + Ara lidera a MTN03 + Santuario.
-// Patrón: Singleton DDOL + State Machine
-// Durgan y Liara: NPCInteract y Collider2D se crean en runtime si faltan.
+//          + navigation to Liara's Lookout (HV05) + Ara leads to MTN03 + Sanctuary.
+// Pattern: Singleton DDOL + State Machine
+// Durgan and Liara: NPCInteract and Collider2D are created at runtime if missing.
 public class TutorialManager : MonoBehaviour
 {
     public static TutorialManager Instance { get; private set; }
@@ -45,7 +45,7 @@ public class TutorialManager : MonoBehaviour
     static readonly Color c_Liara  = new Color(0.72f, 0.55f, 0.95f);
 
     static readonly Vector3 DoorWorldPos  = new Vector3(12f, -2f, 0f);
-    // Plat_A_LowLeft en HV01_Exterior
+    // Plat_A_LowLeft in HV01_Exterior
     static readonly Vector3 PlatTargetPos = new Vector3(-66.1f, -23.2f, 0f);
     const float PlatGroundThreshold       = -24.5f;
 
@@ -79,7 +79,7 @@ public class TutorialManager : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    // ── Detección de cambio de escena ─────────────────────────────────────────
+    // ── Scene change detection ────────────────────────────────────────────────
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
@@ -99,12 +99,12 @@ public class TutorialManager : MonoBehaviour
 
         switch (scene.name)
         {
-            case "HV01_Interior":
+            case EldoriaSceneNames.HV01_Interior:
                 if (_phase == Phase.Inactive || _phase == Phase.IntroDlg)
                     StartCoroutine(BeginInteriorTutorial());
                 break;
 
-            case "HV01_Exterior":
+            case EldoriaSceneNames.HV01_Exterior:
                 if (_phase == Phase.ShowDoorArrow || _phase == Phase.GateHoldJump ||
                     _phase == Phase.GateDrop      || _phase == Phase.DurganApproach)
                     StartCoroutine(BeginExteriorTutorial());
@@ -112,27 +112,27 @@ public class TutorialManager : MonoBehaviour
                     StartCoroutine(BeginMapTutorial());
                 break;
 
-            case "HV05":
+            case EldoriaSceneNames.HV05:
                 if (_phase == Phase.LiaraApproach || _phase == Phase.LiaraDialogue)
                     StartCoroutine(BeginLiaraTutorial());
                 break;
 
-            case "MTN03":
+            case EldoriaSceneNames.MTN03:
                 if (_phase == Phase.AraLeads)
                     StartCoroutine(BeginSanctuaryTutorial());
                 break;
         }
 
-        // Hint persistente mientras navegamos hacia Liara
-        if (_phase == Phase.LiaraApproach && scene.name != "HV05")
+        // Persistent hint while navigating toward Liara
+        if (_phase == Phase.LiaraApproach && scene.name != EldoriaSceneNames.HV05)
         {
             ObjectiveArrow.Hide();
             TutorialHint.Show("Ve al Mirador de Liara — Zona B  [ M ] para el mapa");
             WorldMapController.Instance?.SetTutorialObjective("HUB05");
         }
 
-        // Flecha persistente hacia el oeste mientras Ara lidera hacia las Montañas
-        if (_phase == Phase.AraLeads && scene.name != "MTN03")
+        // Persistent arrow pointing west while Ara leads toward the Mountains
+        if (_phase == Phase.AraLeads && scene.name != EldoriaSceneNames.MTN03)
         {
             TutorialHint.Show("Sigue a Ara  →  Ve hacia el oeste");
             ObjectiveArrow.Show(new Vector3(-9999f, -15f, 0f));
@@ -486,11 +486,11 @@ public class TutorialManager : MonoBehaviour
 
     void HandleSanctuaryRested() => _sanctuaryRested = true;
 
-    // ── Post-tutorial: diálogos idle de NPCs ──────────────────────────────────
+    // ── Post-tutorial: NPC idle dialogues ────────────────────────────────────
 
     void HandleDonePhaseSceneLoad(string sceneName)
     {
-        if (sceneName == "HV01_Exterior")
+        if (sceneName == EldoriaSceneNames.HV01_Exterior)
         {
             var go = GameObject.Find("NPC_Durgan");
             if (go != null)
@@ -499,7 +499,7 @@ public class TutorialManager : MonoBehaviour
                 AssignIdleDialogue(_durganNPC, BuildDurganIdleDialogue());
             }
         }
-        else if (sceneName == "HV05")
+        else if (sceneName == EldoriaSceneNames.HV05)
         {
             var go = GameObject.Find("NPC_Lyara");
             if (go != null)
@@ -510,7 +510,7 @@ public class TutorialManager : MonoBehaviour
         }
     }
 
-    // Asigna un diálogo persistente que se reactiva tras cada conversación.
+    // Assigns a persistent dialogue that reactivates after each conversation ends.
     static void AssignIdleDialogue(NPCInteract npc, DialogueManager.DialoguePage[] pages)
     {
         if (npc == null || pages == null || pages.Length == 0) return;
@@ -631,7 +631,7 @@ public class TutorialManager : MonoBehaviour
         }
     }
 
-    // Busca el primer NPCInteract cuyo nombre contiene 'partialName'
+    // Finds the first NPCInteract whose name contains 'partialName'
     static NPCInteract FindNPCInteractNamed(string partialName)
     {
         foreach (var npc in Object.FindObjectsOfType<NPCInteract>())
@@ -640,13 +640,13 @@ public class TutorialManager : MonoBehaviour
         return null;
     }
 
-    // Garantiza que el GameObject tenga NPCInteract (y Collider2D si falta).
+    // Ensures the GameObject has NPCInteract (and a Collider2D if missing).
     static NPCInteract EnsureNPCInteract(GameObject go, Vector2 size, Vector2 offset)
     {
         var npc = go.GetComponent<NPCInteract>();
         if (npc != null) return npc;
 
-        // Añadir collider si no existe
+        // Add collider if it doesn't exist
         if (go.GetComponent<Collider2D>() == null)
         {
             var col    = go.AddComponent<BoxCollider2D>();

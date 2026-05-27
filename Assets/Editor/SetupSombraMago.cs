@@ -4,19 +4,19 @@ using UnityEditor;
 using UnityEditor.U2D.Sprites;
 using UnityEditor.SceneManagement;
 
-// Patrón: Command (cada MenuItem encapsula una acción acotada e idempotente)
+// Pattern: Command (each MenuItem encapsulates a scoped, idempotent action)
 //
-// Paso 1 — Eldoria/SombraMago/1 - Importar Sprites
-//   · sombra idle movement.png  → 10 frames a 80px de stride (PPU=16, pivot 0.25/0)
-//   · damage sombra.png         → 5  frames a 74px de stride (PPU=16, pivot 0.25/0)
-//   · atack sombra1-6.png       → 6 sprites individuales para la animación del cuerpo al lanzar
-//   · atack sombraprime1-6.png  → 6 sprites individuales para el proyectil (PPU=16, pivot 0.5/0.5)
+// Step 1 — Eldoria/SombraMago/1 - Import Sprites
+//   · sombra idle movement.png  → 10 frames at 80px stride (PPU=16, pivot 0.25/0)
+//   · damage sombra.png         → 5  frames at 74px stride (PPU=16, pivot 0.25/0)
+//   · atack sombra1-6.png       → 6 individual sprites for body animation while casting
+//   · atack sombraprime1-6.png  → 6 individual sprites for the projectile (PPU=16, pivot 0.5/0.5)
 //
-// Paso 2 — Eldoria/SombraMago/2 - Crear Prefab Proyectil
-//   Crea Assets/Prefabs/Enemies/SombraProyectil.prefab y le asigna los 6 frames.
+// Step 2 — Eldoria/SombraMago/2 - Create Projectile Prefab
+//   Creates Assets/Prefabs/Enemies/SombraProyectil.prefab and assigns the 6 frames.
 //
-// Paso 3 — Eldoria/SombraMago/3 - Colocar en MTN02
-//   Requiere MTN02 como escena activa. Crea SombraMago_1 en (25,-14), patrulla (15,38).
+// Step 3 — Eldoria/SombraMago/3 - Place in MTN04
+//   Requires MTN04 as the active scene. Creates SombraMago_1 at (-12,-7), patrol (-42,18).
 public static class SetupSombraMago
 {
     const string SpritePath  = "Assets/Sprites/Enemigos/sprite mago/";

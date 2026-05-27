@@ -13,7 +13,7 @@ public class MainMenuManager : MonoBehaviour
     [SerializeField] private Button quitYesButton;
     [SerializeField] private Button quitNoButton;
 
-    [Header("Música del menú")]
+    [Header("Menu Music")]
     [SerializeField] private AudioClip menuMusic;
 
     void Start()
@@ -26,12 +26,12 @@ public class MainMenuManager : MonoBehaviour
         if (quitYesButton) quitYesButton.onClick.AddListener(OnQuitConfirm);
         if (quitNoButton)  quitNoButton .onClick.AddListener(OnQuitCancel);
 
-        // Solo el MainMenu inicia la música; el resto de escenas la detienen
+        // Only MainMenu starts the music; other scenes stop or replace it
         AudioManager.Instance?.PlayMusic(menuMusic);
     }
 
-    private void OnPlay()    => SceneFader.Instance.LoadScene("SlotsScreen");
-    private void OnOptions() => SceneFader.Instance.LoadScene("Settings");
+    private void OnPlay()    => SceneFader.Instance.LoadScene(EldoriaSceneNames.SlotsScreen);
+    private void OnOptions() => SceneFader.Instance.LoadScene(EldoriaSceneNames.Settings);
 
     private void OnQuit()       => quitConfirmPanel.SetActive(true);
     private void OnQuitCancel() => quitConfirmPanel.SetActive(false);

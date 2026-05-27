@@ -1,23 +1,23 @@
 using UnityEngine;
 
-// Ciclo día/noche basado en tiempo total de partida (persistente entre sesiones).
-// Patrón: State Machine — 4 fases (Night→Dawn→Day→Dusk→Night) en bucle.
-//         Crossfade de alpha entre fases. El estado al cargar refleja el tiempo acumulado.
-// Dependencia: GameSaveController.TotalPlayTime (savedPlayTime + sesión actual).
+// Day/night cycle based on total play time (persistent across sessions).
+// Pattern: State Machine — 4 phases (Night→Dawn→Day→Dusk→Night) in a loop.
+//          Alpha crossfade between phases. State at load reflects accumulated time.
+// Dependency: GameSaveController.TotalPlayTime (savedPlayTime + current session).
 public class DayCycleController : MonoBehaviour
 {
     public enum TimeOfDay { Night, Dawn, Day, Dusk }
 
-    [Header("Fondos (asignar en inspector o se buscan por nombre)")]
+    [Header("Backgrounds (assign in Inspector or auto-found by child name)")]
     public SpriteRenderer bgNight;
     public SpriteRenderer bgDawn;
     public SpriteRenderer bgDay;
     public SpriteRenderer bgDusk;
 
-    [Header("Duración de cada fase (segundos)")]
-    public float phaseDuration = 300f; // 5 minutos por fase, 20 min ciclo completo
+    [Header("Phase duration (seconds)")]
+    public float phaseDuration = 300f;  // 5 min per phase, 20 min full cycle
 
-    [Header("Duración crossfade (segundos)")]
+    [Header("Crossfade duration (seconds)")]
     public float fadeDuration = 4f;
 
     private TimeOfDay _shown  = TimeOfDay.Night;
@@ -29,7 +29,7 @@ public class DayCycleController : MonoBehaviour
     void Start()
     {
         AutoFindChildren();
-        // Snap inmediato al estado correcto según el tiempo de partida guardado.
+        // Snap immediately to the correct state based on saved play time.
         _shown = StateFromTime(GetTotalPlayTime());
         InitAlphas();
     }
@@ -44,13 +44,13 @@ public class DayCycleController : MonoBehaviour
             TickFade();
     }
 
-    // ── Tiempo ───────────────────────────────────────────────────────────────
+    // ── Time ──────────────────────────────────────────────────────────────────
     private float GetTotalPlayTime()
     {
-        // En partida real usa el tiempo guardado + sesión actual.
+        // In a real game session use saved time + current session.
         if (GameSaveController.Instance != null)
             return GameSaveController.Instance.TotalPlayTime;
-        // Fallback en editor o sin slot activo: tiempo de sesión Unity.
+        // Fallback in editor or without an active slot: Unity session time.
         return Time.time;
     }
 
@@ -63,6 +63,7 @@ public class DayCycleController : MonoBehaviour
     // ── Init ──────────────────────────────────────────────────────────────────
     private void AutoFindChildren()
     {
+        // Child names match the scene hierarchy — do NOT rename without also renaming scene objects.
         if (bgNight == null) { var t = transform.Find("BG_Noche");     if (t) bgNight = t.GetComponent<SpriteRenderer>(); }
         if (bgDawn  == null) { var t = transform.Find("BG_Amanecer");  if (t) bgDawn  = t.GetComponent<SpriteRenderer>(); }
         if (bgDay   == null) { var t = transform.Find("BG_Dia");       if (t) bgDay   = t.GetComponent<SpriteRenderer>(); }
@@ -103,9 +104,9 @@ public class DayCycleController : MonoBehaviour
         }
     }
 
-    // ── API pública ───────────────────────────────────────────────────────────
-    // Avanza al siguiente estado (Night→Dawn→Day→Dusk→Night).
-    // Llamar desde Santuario de Ara al descansar — efecto solo visual esta sesión.
+    // ── Public API ────────────────────────────────────────────────────────────
+    // Advances to the next state (Night→Dawn→Day→Dusk→Night).
+    // Call from the Ara Sanctuary on rest — visual effect for this session only.
     public void AdvanceToNextState()
     {
         TimeOfDay next = (TimeOfDay)(((int)_shown + 1) % 4);

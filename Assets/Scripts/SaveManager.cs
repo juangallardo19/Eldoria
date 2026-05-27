@@ -13,7 +13,7 @@ public class SaveManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        // Bootstrap: asegurar que GameSaveController existe junto al SaveManager.
+        // Bootstrap: ensure GameSaveController exists alongside SaveManager.
         if (GameSaveController.Instance == null)
             gameObject.AddComponent<GameSaveController>();
     }

@@ -1,9 +1,9 @@
 using System.Collections;
 using UnityEngine;
 
-// Brazo del boss como barrido rasante — vuela horizontalmente a ras del suelo, ida y vuelta.
-// Mecánica: el jugador DEBE SALTAR para esquivarlo. Sin homing: trayectoria puramente horizontal.
-// Puede golpear una vez en la ida y una vez en la vuelta.
+// Boss arm as a floor-skimming sweep — flies horizontally at ground level, out and back.
+// Mechanic: the player MUST JUMP to dodge it. No homing: purely horizontal path.
+// Can hit once on the way out and once on the way back.
 [RequireComponent(typeof(SpriteRenderer))]
 [RequireComponent(typeof(BoxCollider2D))]
 public class BossArmSweep : MonoBehaviour
@@ -16,9 +16,9 @@ public class BossArmSweep : MonoBehaviour
     private float _fixedY;
     private bool  _hit;
 
-    // direction: +1 = hacia la derecha, -1 = izquierda
-    // wallX: límite del arena hasta donde volar
-    // El Y ya debe estar seteado en transform.position antes de llamar Init
+    // direction: +1 = right, -1 = left
+    // wallX: arena boundary to fly toward
+    // Y must be set in transform.position before calling Init
     public void Init(float direction, float wallX, Sprite sprite)
     {
         _originX = transform.position.x;
@@ -46,8 +46,8 @@ public class BossArmSweep : MonoBehaviour
 
         var col       = GetComponent<BoxCollider2D>();
         col.isTrigger = true;
-        // 8u ancho x 1.8u alto (arm scale=1): cubre el cuerpo central del brazo.
-        // Y=-11.5: golpea jugador parado [-12,-10]; free si salta ≥1.5u (centro ≥-9.5).
+        // 8u wide × 1.8u tall (arm scale=1): covers the arm's central body.
+        // Y=-11.5: hits standing player at y=[-12,-10]; safe if jumping ≥1.5u (centre ≥-9.5).
         col.size      = new Vector2(8.0f, 1.8f);
 
         StartCoroutine(SweepRoutine(direction));
@@ -55,7 +55,7 @@ public class BossArmSweep : MonoBehaviour
 
     private IEnumerator SweepRoutine(float dir)
     {
-        // ── Ida: vuela hacia el límite del arena ──────────────────────────────
+        // ── Outward: fly toward the arena boundary ────────────────────────────
         while (Mathf.Abs(transform.position.x - _wallX) > 0.4f)
         {
             transform.position = Vector3.MoveTowards(
@@ -66,8 +66,8 @@ public class BossArmSweep : MonoBehaviour
             yield return null;
         }
 
-        // ── Vuelta: regresa al origen ──────────────────────────────────────────
-        _hit = false;   // puede volver a golpear en el regreso
+        // ── Return: fly back to origin ────────────────────────────────────────
+        _hit = false;   // can hit again on the return trip
 
         while (Mathf.Abs(transform.position.x - _originX) > 0.4f)
         {

@@ -1,25 +1,28 @@
 using System.Collections;
 using UnityEngine;
 
-// Singleton escena-local — gestiona respawn al tocar cristales o recibir daño de boss.
-// Patrón Observer: Update rastrea IsGrounded → _lastSafePos.
-// Patrón State (dos flags):
-//   _isRespawning — durante FadeOut/Teleport/FadeIn: bloquea cristales Y enemigos.
-//   _isBlinking   — parpadeo post-respawn: bloquea solo enemigos (cristales SIGUEN matando).
+// Scene-local Singleton — manages respawn when the player touches crystals or takes boss damage.
+// Pattern Observer: Update tracks IsGrounded → _lastSafePos.
+// Pattern State (two flags):
+//   _isRespawning — during FadeOut/Teleport/FadeIn: blocks both crystals AND enemies.
+//   _isBlinking   — post-respawn blink: blocks enemies only (crystals STILL kill).
 //
-// Flujo de muerte (0 vidas):
-//   TriggerDie() → animación death completa (1.92s) → FadeOut → santuario o SlotsScreen
-// Flujo de daño normal (>0 vidas):
-//   TriggerHurt() → FadeOut → teleport a lastSafePos → FadeIn → blink 2s
+// Death flow (0 lives):
+//   TriggerDie() → full death animation (1.92s) → FadeOut → sanctuary or SlotsScreen
+// Damage flow (>0 lives):
+//   TriggerHurt() → FadeOut → teleport to lastSafePos → FadeIn → blink 2s
 public class CrystalRespawnManager : MonoBehaviour
 {
     public static CrystalRespawnManager Instance { get; private set; }
 
-    [SerializeField] private int   defaultLives    = 5;
-    [SerializeField] private float blinkDuration   = 2f;
-    [SerializeField] private float blinkInterval   = 0.1f;
-    // Duración animación Death de Kael: 23 frames @ 12fps = 1.916s
+    [SerializeField] private int   defaultLives      = 5;
+    [SerializeField] private float blinkDuration     = 2f;
+    [SerializeField] private float blinkInterval     = 0.1f;
+    // Kael's Death animation: 23 frames @ 12fps = 1.916s
     [SerializeField] private float deathAnimDuration = 1.92f;
+
+    // Hurt animation: 7 frames @ 12fps = 0.583s — kept as const for clarity
+    private const float HurtAnimDuration = 0.5833f;
 
     private int              _lives;
     private Vector3          _lastSafePos;
@@ -33,18 +36,18 @@ public class CrystalRespawnManager : MonoBehaviour
     public bool IsRespawning => _isRespawning;
     public int  Lives        => _lives;
 
-    // Patrón Observer — PlayerHUD se suscribe a estos eventos para animar los iconos Ara
+    // Observer — PlayerHUD subscribes to animate the Ara icons
     public static event System.Action<int>      OnLivesChanged;   // (newLives)
     public static event System.Action<int, int> OnDamageTaken;    // (newLives, prevLives)
     public static event System.Action<int>      OnLivesRestored;  // (newLives)
 
-    // Persiste las vidas entre cambios de escena en memoria (no en disco).
-    // Evita que las vidas se restauren a 5 al cargar una nueva escena.
+    // Persists lives across scene changes in memory (not on disk).
+    // Prevents lives from resetting to 5 when loading a new scene.
     private static int   _persistedLives     = -1;
     private static float _persistedTimestamp = -1f;
-    const float PERSIST_WINDOW = 15f;  // segundos máximos entre OnDestroy y el siguiente Start
+    private const  float PersistWindow       = 15f;  // max seconds between OnDestroy and next Start
 
-    // ── Ciclo de vida ────────────────────────────────────────────────────────
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     void Awake()
     {
@@ -55,7 +58,7 @@ public class CrystalRespawnManager : MonoBehaviour
     void OnDestroy()
     {
         if (Instance != this) return;
-        // Guardar vidas en memoria y en disco antes de que la escena se descargue.
+        // Save lives in memory and on disk before the scene unloads.
         _persistedLives     = _lives;
         _persistedTimestamp = Time.realtimeSinceStartup;
         if (_lives > 0) PersistHealth();
@@ -64,11 +67,11 @@ public class CrystalRespawnManager : MonoBehaviour
 
     void Start()
     {
-        // Usar vidas en memoria si provienen de un cambio de escena reciente.
+        // Use in-memory lives if they come from a recent scene change.
         float age = Time.realtimeSinceStartup - _persistedTimestamp;
-        if (_persistedLives >= 0 && age < PERSIST_WINDOW)
+        if (_persistedLives >= 0 && age < PersistWindow)
         {
-            _lives = _persistedLives;
+            _lives              = _persistedLives;
             _persistedLives     = -1;
             _persistedTimestamp = -1f;
         }
@@ -81,8 +84,9 @@ public class CrystalRespawnManager : MonoBehaviour
                 if (data != null && !data.isEmpty) _lives = Mathf.Max(1, data.health);
             }
         }
-        // Notifica al HUD inmediatamente — evita que las Aras aparezcan como cenizas
-        // porque OnSceneLoaded en PlayerHUD dispara ANTES de que Start() inicialice _lives.
+
+        // Notify HUD immediately — avoids Ara icons appearing as ash because
+        // OnSceneLoaded in PlayerHUD fires BEFORE Start() initializes _lives.
         OnLivesChanged?.Invoke(_lives);
 
         _player = FindObjectOfType<PlayerController>();
@@ -92,11 +96,11 @@ public class CrystalRespawnManager : MonoBehaviour
             _playerSR    = _player.GetComponent<SpriteRenderer>();
             _playerAnim  = _player.GetComponent<PlayerAnimator>();
 
-            // Garantiza que el jugador esté activo y visible al entrar en una escena
-            // (puede llegar desactivado si el cambio de escena interrumpió un respawn).
+            // Ensure the player is active and visible when entering a scene
+            // (may arrive deactivated if a scene change interrupted a respawn).
             _player.enabled = true;
             if (_playerAnim != null) _playerAnim.enabled = true;
-            if (_playerSR != null) _playerSR.enabled = true;
+            if (_playerSR   != null) _playerSR.enabled   = true;
             var rbStart = _player.GetComponent<Rigidbody2D>();
             if (rbStart != null) rbStart.isKinematic = false;
         }
@@ -118,25 +122,25 @@ public class CrystalRespawnManager : MonoBehaviour
             _lastSafePos = _player.transform.position;
     }
 
-    // ── API pública ──────────────────────────────────────────────────────────
+    // ── Public API ────────────────────────────────────────────────────────────
 
-    // Llamado por CrystalHazard — ignora _isBlinking (cristales siempre son letales)
+    // Called by CrystalHazard — ignores _isBlinking (crystals are always lethal)
     public void TriggerHazard()
     {
         if (_isRespawning || _player == null) return;
         StartCoroutine(RespawnCoroutine(1));
     }
 
-    // Llamado por ataques del boss — respeta _isBlinking (post-respawn)
-    // Sin fade ni teleporte: solo animación hurt + parpadeo de invulnerabilidad.
-    // Si las vidas llegan a 0, sí ejecuta muerte con fade a santuario.
+    // Called by boss attacks — respects _isBlinking (post-respawn window).
+    // No fade or teleport: only hurt animation + invulnerability blink.
+    // If lives reach 0, executes full death + fade to sanctuary.
     public void TakeBossDamage(int livesLost)
     {
         if (_isRespawning || _isBlinking || _player == null) return;
         StartCoroutine(BossDamageCoroutine(livesLost));
     }
 
-    // Llamado por SanctuaryFlame al descansar
+    // Called by SanctuaryFlame when the player rests
     public void RestoreLives()
     {
         _lives = defaultLives;
@@ -145,7 +149,7 @@ public class CrystalRespawnManager : MonoBehaviour
         OnLivesChanged?.Invoke(_lives);
     }
 
-    // Versión estática: funciona aunque la escena no tenga instancia (ej. MTN03 sin cristales).
+    // Static version: works even when the scene has no CrystalRespawnManager instance.
     public static void RestoreLivesGlobal(int lives = 5)
     {
         if (Instance != null) { Instance.RestoreLives(); return; }
@@ -158,7 +162,7 @@ public class CrystalRespawnManager : MonoBehaviour
         OnLivesChanged?.Invoke(lives);
     }
 
-    // ── Respawn principal ────────────────────────────────────────────────────
+    // ── Main respawn coroutine ────────────────────────────────────────────────
 
     private IEnumerator RespawnCoroutine(int livesLost)
     {
@@ -169,76 +173,23 @@ public class CrystalRespawnManager : MonoBehaviour
 
         if (livesAfter <= 0)
         {
-            // ── Muerte: animación completa antes del fade ──────────────────
-            OnDamageTaken?.Invoke(0, _lives);  // HUD muestra todas las Aras muertas
-            _playerAnim?.TriggerDie();
-            // Desactivar PlayerAnimator para que su Update() no sobreescriba bools
-            // en el Animator y no interrumpa la animación de muerte.
-            if (_playerAnim != null) _playerAnim.enabled = false;
-
-            _player.enabled = false;
-            if (rb != null) { rb.velocity = Vector2.zero; rb.isKinematic = true; }
-
-            // Esperar a que termine la animación de muerte
-            yield return new WaitForSeconds(deathAnimDuration);
-
-            if (SceneFader.Instance != null) yield return SceneFader.Instance.FadeOutAsync();
-            else yield return new WaitForSeconds(0.4f);
-
-            _lives = 0;
-            PersistHealth();
-
-            // Intentar regresar al último santuario de Ara
-            string sanctScene = PlayerPrefs.GetString("SanctuaryScene", "");
-            if (!string.IsNullOrEmpty(sanctScene))
-            {
-                _lives = defaultLives;
-                PersistHealth();
-                // Avisar al HUD antes del cambio de escena — el canvas es DDOL
-                // y el jugador verá las Aras vivas cuando aparezca la nueva escena.
-                OnLivesRestored?.Invoke(_lives);
-                OnLivesChanged?.Invoke(_lives);
-
-                float sx = PlayerPrefs.GetFloat("SanctuaryX", 0f);
-                float sy = PlayerPrefs.GetFloat("SanctuaryY", 0f);
-                PlayerSpawnManager.UsePositionOverride   = true;
-                PlayerSpawnManager.OverridePositionValue = new Vector2(sx, sy);
-
-                // FadeOutAsync dejó _isFading=true; usar LoadSceneAfterFade para saltarse el guard.
-                if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade(sanctScene);
-                else UnityEngine.SceneManagement.SceneManager.LoadScene(sanctScene);
-            }
-            else
-            {
-                // Sin santuario: volver al inicio del bioma donde murió el jugador.
-                string fallback = FallbackScene();
-                _lives = defaultLives;
-                PersistHealth();
-                // Avisar al HUD antes del cambio de escena.
-                OnLivesRestored?.Invoke(_lives);
-                OnLivesChanged?.Invoke(_lives);
-                PlayerSpawnManager.NextSpawnId = "default";
-                if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade(fallback);
-                else UnityEngine.SceneManagement.SceneManager.LoadScene(fallback);
-            }
+            yield return StartCoroutine(ExecuteDeathSequence(rb));
             yield break;
         }
 
-        // ── Daño normal: hurt → esperar animación completa → fade → teleport → blink ──
-        // Notifica al HUD ANTES del fade para que la animación Ara sea visible
+        // Damage flow: hurt → wait full animation → fade → teleport → blink
+        // Notify HUD BEFORE the fade so the Ara animation is visible
         OnDamageTaken?.Invoke(livesAfter, _lives);
 
         _player?.PlayHurtSound();
 
-        // Re-obtener _playerAnim por si acaso llegó null entre cambios de escena
         if (_playerAnim == null && _player != null)
             _playerAnim = _player.GetComponent<PlayerAnimator>();
 
         _playerAnim?.TriggerHurt();
 
-        // Esperar que termine la animación Hurt (7 frames @ 12fps = 0.583s)
-        // antes de hacer el fade, para que el jugador vea la animación completa.
-        yield return new WaitForSeconds(0.5833f);
+        // Wait for hurt animation (7 frames @ 12fps = 0.583s)
+        yield return new WaitForSeconds(HurtAnimDuration);
 
         _player.enabled = false;
         if (rb != null) { rb.velocity = Vector2.zero; rb.isKinematic = true; }
@@ -265,7 +216,7 @@ public class CrystalRespawnManager : MonoBehaviour
         _isBlinking = false;
     }
 
-    // ── Blink post-respawn ───────────────────────────────────────────────────
+    // ── Post-respawn blink ────────────────────────────────────────────────────
 
     private IEnumerator BlinkCoroutine()
     {
@@ -281,9 +232,9 @@ public class CrystalRespawnManager : MonoBehaviour
         _playerSR.enabled = true;
     }
 
-    // ── Daño del boss sin teleporte ──────────────────────────────────────────
-    // Vidas > 0: solo hurt + parpadeo, jugador no se deshabilita ni hay fade.
-    // Vidas = 0: muerte completa con fade a santuario (igual que cristales).
+    // ── Boss damage (no teleport) ─────────────────────────────────────────────
+    // Lives > 0: hurt animation + blink only, player stays active.
+    // Lives = 0: full death sequence with fade to sanctuary.
 
     private IEnumerator BossDamageCoroutine(int livesLost)
     {
@@ -294,53 +245,11 @@ public class CrystalRespawnManager : MonoBehaviour
 
         if (livesAfter <= 0)
         {
-            // Muerte por boss: animación de muerte + fade a santuario
-            OnDamageTaken?.Invoke(0, _lives);
-            if (_playerAnim == null && _player != null)
-                _playerAnim = _player.GetComponent<PlayerAnimator>();
-            _playerAnim?.TriggerDie();
-            if (_playerAnim != null) _playerAnim.enabled = false;
-
-            _player.enabled = false;
-            if (rb != null) { rb.velocity = Vector2.zero; rb.isKinematic = true; }
-
-            yield return new WaitForSeconds(deathAnimDuration);
-
-            if (SceneFader.Instance != null) yield return SceneFader.Instance.FadeOutAsync();
-            else yield return new WaitForSeconds(0.4f);
-
-            _lives = 0;
-            PersistHealth();
-
-            string sanctScene = PlayerPrefs.GetString("SanctuaryScene", "");
-            if (!string.IsNullOrEmpty(sanctScene))
-            {
-                _lives = defaultLives;
-                PersistHealth();
-                OnLivesRestored?.Invoke(_lives);
-                OnLivesChanged?.Invoke(_lives);
-                float sx = PlayerPrefs.GetFloat("SanctuaryX", 0f);
-                float sy = PlayerPrefs.GetFloat("SanctuaryY", 0f);
-                PlayerSpawnManager.UsePositionOverride   = true;
-                PlayerSpawnManager.OverridePositionValue = new Vector2(sx, sy);
-                if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade(sanctScene);
-                else UnityEngine.SceneManagement.SceneManager.LoadScene(sanctScene);
-            }
-            else
-            {
-                string fallback = FallbackScene();
-                _lives = defaultLives;
-                PersistHealth();
-                OnLivesRestored?.Invoke(_lives);
-                OnLivesChanged?.Invoke(_lives);
-                PlayerSpawnManager.NextSpawnId = "default";
-                if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade(fallback);
-                else UnityEngine.SceneManagement.SceneManager.LoadScene(fallback);
-            }
+            yield return StartCoroutine(ExecuteDeathSequence(rb));
             yield break;
         }
 
-        // Daño normal: HUD + hurt animation. El jugador sigue activo y puede moverse.
+        // Normal damage: HUD + hurt animation. Player remains active.
         OnDamageTaken?.Invoke(livesAfter, _lives);
         _lives = livesAfter;
         PersistHealth();
@@ -350,8 +259,7 @@ public class CrystalRespawnManager : MonoBehaviour
         _playerAnim?.TriggerHurt();
         _player?.PlayHurtSound();
 
-        // Esperar animación hurt (7 frames @ 12fps = 0.583s)
-        yield return new WaitForSeconds(0.5833f);
+        yield return new WaitForSeconds(HurtAnimDuration);
 
         OnLivesChanged?.Invoke(_lives);
 
@@ -363,7 +271,64 @@ public class CrystalRespawnManager : MonoBehaviour
         _isBlinking = false;
     }
 
-    // ── Persistencia ─────────────────────────────────────────────────────────
+    // ── Shared death sequence (crystals and boss both call this) ─────────────
+
+    private IEnumerator ExecuteDeathSequence(Rigidbody2D rb)
+    {
+        OnDamageTaken?.Invoke(0, _lives);
+
+        if (_playerAnim == null && _player != null)
+            _playerAnim = _player.GetComponent<PlayerAnimator>();
+        _playerAnim?.TriggerDie();
+        // Disable PlayerAnimator so its Update() doesn't overwrite Animator bools
+        // and interrupt the death animation.
+        if (_playerAnim != null) _playerAnim.enabled = false;
+
+        _player.enabled = false;
+        if (rb != null) { rb.velocity = Vector2.zero; rb.isKinematic = true; }
+
+        yield return new WaitForSeconds(deathAnimDuration);
+
+        if (SceneFader.Instance != null) yield return SceneFader.Instance.FadeOutAsync();
+        else yield return new WaitForSeconds(0.4f);
+
+        _lives = 0;
+        PersistHealth();
+
+        string sanctScene = PlayerPrefs.GetString(EldoriaPrefsKeys.SanctuaryScene, "");
+        if (!string.IsNullOrEmpty(sanctScene))
+        {
+            _lives = defaultLives;
+            PersistHealth();
+            // Notify HUD before scene change — the canvas is DDOL so Ara icons
+            // will appear alive when the new scene loads.
+            OnLivesRestored?.Invoke(_lives);
+            OnLivesChanged?.Invoke(_lives);
+
+            float sx = PlayerPrefs.GetFloat(EldoriaPrefsKeys.SanctuaryX, 0f);
+            float sy = PlayerPrefs.GetFloat(EldoriaPrefsKeys.SanctuaryY, 0f);
+            PlayerSpawnManager.UsePositionOverride   = true;
+            PlayerSpawnManager.OverridePositionValue = new Vector2(sx, sy);
+
+            // FadeOutAsync left _isFading=true; use LoadSceneAfterFade to bypass the guard.
+            if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade(sanctScene);
+            else UnityEngine.SceneManagement.SceneManager.LoadScene(sanctScene);
+        }
+        else
+        {
+            // No sanctuary saved: return to the biome start.
+            string fallback = FallbackScene();
+            _lives = defaultLives;
+            PersistHealth();
+            OnLivesRestored?.Invoke(_lives);
+            OnLivesChanged?.Invoke(_lives);
+            PlayerSpawnManager.NextSpawnId = "default";
+            if (SceneFader.Instance != null) SceneFader.Instance.LoadSceneAfterFade(fallback);
+            else UnityEngine.SceneManagement.SceneManager.LoadScene(fallback);
+        }
+    }
+
+    // ── Persistence ───────────────────────────────────────────────────────────
 
     private void PersistHealth()
     {
@@ -375,18 +340,18 @@ public class CrystalRespawnManager : MonoBehaviour
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    // Escena de respaldo si el jugador muere sin santuario guardado.
-    // HV → vuelve a la casa de Kael. MTN → vuelve al exterior de las Montañas.
+    // Fallback scene when the player dies without a saved sanctuary.
+    // HV* scenes → return to Kael's house. MTN* → return to the mountain exterior.
     private static string FallbackScene()
     {
         string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         if (scene.StartsWith("HV") || scene == "Intro" || scene == "MainMenu")
-            return "HV01_Interior";
-        return "MTN01_Exterior";
+            return EldoriaSceneNames.HV01_Interior;
+        return EldoriaSceneNames.MTN01_Exterior;
     }
 
-    // Llamar desde SlotsScreenManager al iniciar/continuar partida para que
-    // las vidas de una partida anterior no contaminen la nueva.
+    // Call from SlotsScreenManager when starting/continuing a save to prevent
+    // lives from a previous session contaminating the new one.
     public static void InvalidatePersistedLives()
     {
         _persistedLives     = -1;

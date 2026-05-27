@@ -5,9 +5,9 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
 // Editor script — Eldoria/Fix Settings Camera
-// Añade una MainCamera a la escena Settings y cambia el Canvas a Screen Space - Camera
-// para que ScreenColorEffect (brillo/contraste/saturación) afecte visualmente a la UI.
-// Ejecutar con la escena Settings abierta y después guardar con Ctrl+S.
+// Adds a MainCamera to the Settings scene and switches the Canvas to Screen Space - Camera
+// so ScreenColorEffect (brightness/contrast/saturation) visually affects the UI.
+// Run with the Settings scene open, then save with Ctrl+S.
 public static class SettingsSceneFix
 {
     [MenuItem("Eldoria/Fix Settings Camera")]
@@ -26,17 +26,17 @@ public static class SettingsSceneFix
             cam.backgroundColor  = Color.black;
             cam.orthographic     = true;
             cam.orthographicSize = 5f;
-            cam.cullingMask      = -1;  // Everything — necesario para que el Canvas Screen Space-Camera renderice el layer UI
+            cam.cullingMask      = -1;  // Everything — required for Screen Space-Camera Canvas to render the UI layer
             cam.depth            = -1;
 
-            Debug.Log("[SettingsSceneFix] MainCamera creada en la escena Settings.");
+            Debug.Log("[SettingsSceneFix] MainCamera created in the Settings scene.");
         }
         else
         {
-            Debug.Log("[SettingsSceneFix] MainCamera ya existe; reutilizando.");
+            Debug.Log("[SettingsSceneFix] MainCamera already exists; reusing.");
         }
 
-        // Cambiar Canvas a Screen Space - Camera para que OnRenderImage afecte la UI
+        // Switch Canvas to Screen Space - Camera so OnRenderImage affects the UI
         var canvas = Object.FindObjectOfType<Canvas>();
         if (canvas != null)
         {
@@ -48,10 +48,10 @@ public static class SettingsSceneFix
         }
         else
         {
-            Debug.LogError("[SettingsSceneFix] No se encontró Canvas en la escena.");
+            Debug.LogError("[SettingsSceneFix] No Canvas found in the scene.");
         }
 
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
-        Debug.Log("[SettingsSceneFix] Listo. Guarda la escena con Ctrl+S.");
+        Debug.Log("[SettingsSceneFix] Done. Save the scene with Ctrl+S.");
     }
 }

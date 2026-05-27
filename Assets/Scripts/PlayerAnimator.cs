@@ -1,9 +1,9 @@
 using UnityEngine;
 
-// Observer — lee el estado de PlayerController cada frame y actualiza el Animator.
-// Separado del controlador para respetar el principio de responsabilidad única.
+// Observer — reads PlayerController state each frame and updates the Animator.
+// Separated from the controller to respect the single-responsibility principle.
 //
-// Parámetros en el AnimatorController:
+// Animator parameters:
 //   Speed       (Float)
 //   IsGrounded  (Bool)
 //   IsRunning   (Bool)
@@ -50,8 +50,8 @@ public class PlayerAnimator : MonoBehaviour
     public void TriggerHurt() => anim.SetTrigger(PHurt);
     public void TriggerDie()  => anim.SetTrigger(PDie);
 
-    // Fuerza el regreso al estado Idle — llamar después de secuencias de muerte/absorción
-    // para evitar que Kael quede atascado en el último frame de Die.
+    // Forces return to Idle state — call after death/absorption sequences
+    // to prevent Kael getting stuck on the last frame of Die.
     public void ResetToIdle()
     {
         anim.ResetTrigger(PDie);

@@ -2,9 +2,9 @@ using System;
 using System.Collections;
 using UnityEngine;
 
-// Boomerang del boss — proyectil animado con boomarang arms.png en loop.
-// Movimiento horizontal puro: ida al lado del jugador, vuelta al origen.
-// Los frames se cargan de Assets (AssetDatabase en editor) por si boomerangFrames no está asignado.
+// Boss boomerang — animated projectile using boomarang arms.png in a loop.
+// Pure horizontal movement: flies toward the player, then returns to origin.
+// Frames are loaded from Assets (AssetDatabase in editor) if boomerangFrames is not assigned.
 [RequireComponent(typeof(SpriteRenderer))]
 [RequireComponent(typeof(BoxCollider2D))]
 public class BossBoomerang : MonoBehaviour
@@ -12,16 +12,16 @@ public class BossBoomerang : MonoBehaviour
     [SerializeField] private float speed      = 30f;
     [SerializeField] private float travelDist = 18f;
     [SerializeField] private int   damage     = 1;
-    [SerializeField] private float wobbleAmp  = 0.3f;   // amplitud oscilación Y (u)
-    [SerializeField] private float wobbleFreq = 5f;     // frecuencia (rad/s) ≈ 0.8 ciclos/s
+    [SerializeField] private float wobbleAmp  = 0.3f;   // Y oscillation amplitude (units)
+    [SerializeField] private float wobbleFreq = 5f;     // frequency (rad/s) ≈ 0.8 cycles/s
 
     private Vector3 _origin;
     private bool    _hit;
 
-    // onReturn: callback que DoBoomerang espera para saber que los brazos volvieron
+    // onReturn: callback that DoBoomerang waits on to know the arms have returned
     public void Init(float direction, Sprite[] animFrames, Action onReturn = null)
     {
-        // Si no vienen frames o el array tiene slots nulos (Inspector asignó 7 elementos vacíos)
+        // If no frames or the array has null slots (Inspector assigned 7 empty elements)
         if (animFrames == null || animFrames.Length == 0 || animFrames[0] == null)
             animFrames = LoadFrames();
 
@@ -40,7 +40,7 @@ public class BossBoomerang : MonoBehaviour
         }
         else
         {
-            // Fallback naranja solo si absolutamente no hay sprites
+            // Orange fallback only if there are absolutely no sprites
             var tex = new Texture2D(16, 8, TextureFormat.RGBA32, false);
             tex.filterMode = FilterMode.Point;
             var pixels = new Color[128];
@@ -50,17 +50,17 @@ public class BossBoomerang : MonoBehaviour
             sr.sprite = Sprite.Create(tex, new Rect(0, 0, 16, 8), new Vector2(0.5f, 0f), 4f);
         }
 
-        // Hitbox centrada en el punto de spawn (al ras del suelo).
-        // scale=2 → world: ancho=10u, alto=3u. Cubre exactamente la silueta del brazo rasante.
+        // Hitbox centred at the spawn point (at floor level).
+        // scale=2 → world: 10u wide, 3u tall. Covers the arm sprite silhouette exactly.
         var col       = GetComponent<BoxCollider2D>();
         col.isTrigger = true;
         col.size      = new Vector2(5f, 1.5f);
-        col.offset    = new Vector2(0f, 1f);   // sube la hitbox para alinear con los brazos del sprite
+        col.offset    = new Vector2(0f, 1f);   // raise hitbox to align with the arm sprite
 
         StartCoroutine(BoomerangRoutine(direction, onReturn));
     }
 
-    // Carga los sub-sprites de boomarang arms.png directamente desde el proyecto.
+    // Loads sub-sprites from boomarang arms.png directly from the project.
     private static Sprite[] LoadFrames()
     {
 #if UNITY_EDITOR
@@ -73,12 +73,12 @@ public class BossBoomerang : MonoBehaviour
             System.StringComparer.OrdinalIgnoreCase.Compare(a.name, b.name));
         if (list.Count > 0) return list.ToArray();
 
-        // Fallback: spritesheet importada como Single (no Multiple) — usar la textura completa
+        // Fallback: spritesheet imported as Single (not Multiple) — use the full texture
         var tex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(PATH);
         if (tex != null)
             return new[] { Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f) };
 #else
-        // En builds: cargar desde Resources/Boss/BossBoomerang (arrastra los frames allí en el Inspector si es necesario)
+        // In builds: load from Resources/Boss/BossBoomerang (drag frames there in the Inspector if needed)
         var sprites = Resources.LoadAll<Sprite>("Boss/BossBoomerang");
         if (sprites != null && sprites.Length > 0) return sprites;
 #endif
@@ -102,7 +102,7 @@ public class BossBoomerang : MonoBehaviour
         float baseY   = _origin.y;
         float t       = 0f;
 
-        // ── Ida ──────────────────────────────────────────────────────────────
+        // ── Outward ───────────────────────────────────────────────────────────
         while (Mathf.Abs(transform.position.x - targetX) > 0.25f)
         {
             t += Time.deltaTime;
@@ -113,7 +113,7 @@ public class BossBoomerang : MonoBehaviour
             yield return null;
         }
 
-        // ── Vuelta ───────────────────────────────────────────────────────────
+        // ── Return ────────────────────────────────────────────────────────────
         _hit = false;
 
         while (Mathf.Abs(transform.position.x - _origin.x) > 0.25f)
@@ -130,8 +130,8 @@ public class BossBoomerang : MonoBehaviour
         Destroy(gameObject);
     }
 
-    // Comprobación manual cada frame — OnTriggerEnter2D pierde colisiones a velocidades altas
-    // cuando el objeto se mueve vía transform.position (sin Rigidbody continuo).
+    // Manual per-frame check — OnTriggerEnter2D misses collisions at high speeds
+    // when the object moves via transform.position (no continuous Rigidbody).
     private void ManualHitCheck()
     {
         if (_hit) return;

@@ -5,10 +5,10 @@ using UnityEngine.UI;
 using TMPro;
 
 // Editor script — Eldoria/Add Localization (Scene)
-// Añade LocalizedText a CUALQUIER TMP_Text de la escena activa cuyo contenido
-// coincida con una clave registrada en LocalizationManager.
-// Aplica también a botones y labels con nombres descriptivos.
-// Ejecutar con la escena deseada abierta. Repetible: omite textos ya localizados.
+// Adds LocalizedText to ANY TMP_Text in the active scene whose content
+// matches a key registered in LocalizationManager.
+// Also applies to buttons and labels with descriptive names.
+// Run with the desired scene open. Idempotent: skips already-localised texts.
 public static class AddLocalizationToScene
 {
     [MenuItem("Eldoria/Add Localization (Scene)")]
@@ -33,9 +33,9 @@ public static class AddLocalizationToScene
         EditorSceneManager.MarkSceneDirty(
             UnityEngine.SceneManagement.SceneManager.GetActiveScene());
 
-        Debug.Log($"[AddLocalizationToScene] LocalizedText añadido a {count} elementos " +
-                  $"en '{UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}'. " +
-                  "Guarda con Ctrl+S.");
+        Debug.Log($"[AddLocalizationToScene] LocalizedText added to {count} elements " +
+                  $"in '{UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}'. " +
+                  "Save with Ctrl+S.");
     }
 
     static bool ShouldLocalize(TMP_Text text)
@@ -43,17 +43,17 @@ public static class AddLocalizationToScene
         if (string.IsNullOrWhiteSpace(text.text)) return false;
         if (IsExcluded(text)) return false;
 
-        // Clave conocida en la tabla de localización
+        // Known key in the localisation table
         if (LocalizationManager.ContainsKey(text.text)) return true;
 
-        // Separadores de sección estilo "── Pantalla ──"
+        // Section separators like "── Screen ──"
         if (text.text.Contains("──")) return true;
 
-        // Label de fila o nombre descriptivo típico de Eldoria
+        // Row label or typical Eldoria descriptive name
         string n = text.gameObject.name;
         if (n == "Lbl" || n == "Title" || n == "Header") return true;
 
-        // Texto dentro de un Button
+        // Text inside a Button
         if (IsInsideButton(text.transform)) return true;
 
         return false;
@@ -64,7 +64,7 @@ public static class AddLocalizationToScene
         if (text.gameObject.name == "ValueLabel") return true;
         if (text.transform.parent?.GetComponent<SelectionControl>() != null) return true;
         if (int.TryParse(text.text.Trim(), out _)) return true;
-        if (text.text.Contains("×")) return true; // resoluciones "1920 × 1080"
+        if (text.text.Contains("×")) return true; // resolution strings "1920 × 1080"
         return false;
     }
 

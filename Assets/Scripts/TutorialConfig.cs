@@ -1,11 +1,11 @@
 using UnityEngine;
 
-// ScriptableObject que centraliza los retratos de diálogo del tutorial.
-// Crear/actualizar: Eldoria/Setup Tutorial Config
+// ScriptableObject centralising the tutorial dialogue portraits.
+// Create/update via: Eldoria/Setup Tutorial Config
 [CreateAssetMenu(menuName = "Eldoria/Tutorial Config")]
 public class TutorialConfig : ScriptableObject
 {
-    [Header("Retratos de Diálogo")]
+    [Header("Dialogue Portraits")]
     public Sprite kaelDialoguePortrait;
     public Sprite araDialoguePortrait;
     public Sprite durganDialoguePortrait;
@@ -34,7 +34,7 @@ public class TutorialConfig : ScriptableObject
         UnityEditor.EditorUtility.SetDirty(cfg);
         UnityEditor.AssetDatabase.SaveAssets();
         UnityEditor.Selection.activeObject = cfg;
-        Debug.Log("[TutorialConfig] Setup completo — retratos asignados.");
+        Debug.Log("[TutorialConfig] Setup complete — portraits assigned.");
     }
 
     static void Assign(UnityEditor.SerializedObject so, string prop, string path)
@@ -42,7 +42,7 @@ public class TutorialConfig : ScriptableObject
         var p   = so.FindProperty(prop);
         var spr = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
         if (p != null && spr != null) p.objectReferenceValue = spr;
-        else Debug.LogWarning($"[TutorialConfig] No encontrado: {path}");
+        else Debug.LogWarning($"[TutorialConfig] Not found: {path}");
     }
 #endif
 }

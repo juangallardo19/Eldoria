@@ -1,9 +1,9 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// Zona en el borde del nivel que carga la escena vecina al tocarse.
-// Patrón: Command — la transición está encapsulada; se ejecuta automáticamente
-//         cuando el jugador entra al trigger (sin tecla de interacción).
+// Zone at the level edge that loads the neighbouring scene on contact.
+// Pattern: Command — the transition is encapsulated; it fires automatically
+//         when the player enters the trigger (no interaction key needed).
 [RequireComponent(typeof(BoxCollider2D))]
 public class SceneBoundary : MonoBehaviour
 {
@@ -30,7 +30,7 @@ public class SceneBoundary : MonoBehaviour
             SceneManager.LoadScene(targetScene);
     }
 
-    // OnTriggerStay cubre el caso en que el jugador ya estaba dentro del trigger al activarse
+    // OnTriggerStay handles the case where the player was already inside the trigger when it activated
     void OnTriggerStay2D(Collider2D other) => OnTriggerEnter2D(other);
 
 #if UNITY_EDITOR

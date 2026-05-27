@@ -3,9 +3,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-// Patrón Observer — muestra los corazones de vida del jugador en pantalla.
-// DontDestroyOnLoad: persiste entre escenas. Se actualiza cada frame leyendo
-// CrystalRespawnManager.Instance.Lives (singleton local de cada escena).
+// Pattern: Observer — shows the player's life hearts on screen.
+// DontDestroyOnLoad: persists across scenes. Updated each frame by reading
+// CrystalRespawnManager.Instance.Lives (scene-local singleton).
 public class PlayerLivesHUD : MonoBehaviour
 {
     private static PlayerLivesHUD _instance;
@@ -18,7 +18,7 @@ public class PlayerLivesHUD : MonoBehaviour
 
     void Awake()
     {
-        // Reemplazado por PlayerHUD.cs — este script ya no es necesario
+        // Superseded by PlayerHUD.cs — this script is no longer needed
         Destroy(gameObject);
     }
 
@@ -41,7 +41,7 @@ public class PlayerLivesHUD : MonoBehaviour
 
     private void RefreshDisplay(int lives)
     {
-        // Corazones: llenos en rojo, vacíos en gris (hasta 5 total)
+        // Hearts: filled in red, empty in grey (up to 5 total)
         int maxLives = 5;
         var sb = new System.Text.StringBuilder();
         for (int i = 0; i < maxLives; i++)
@@ -89,7 +89,7 @@ public class PlayerLivesHUD : MonoBehaviour
         _group.blocksRaycasts = false;
         _group.alpha          = 0f;
 
-        // Panel fondo semitransparente — esquina superior izquierda
+        // Semi-transparent background panel — top-left corner
         var panel = MakeRect("LivesPanel", canvasGO.transform);
         var pImg  = panel.AddComponent<Image>();
         pImg.color = new Color(0f, 0f, 0f, 0.45f);
@@ -100,7 +100,7 @@ public class PlayerLivesHUD : MonoBehaviour
         prt.anchoredPosition = new Vector2(20f, -20f);
         prt.sizeDelta = new Vector2(220f, 50f);
 
-        // Corazones
+        // Hearts
         var heartsGO = new GameObject("Hearts");
         heartsGO.transform.SetParent(panel.transform, false);
         _heartsText = heartsGO.AddComponent<TextMeshProUGUI>();

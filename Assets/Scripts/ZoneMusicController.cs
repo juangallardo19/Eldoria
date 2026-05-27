@@ -1,16 +1,16 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// Singleton DontDestroyOnLoad que controla la música de fondo por zona.
-// Patrón: Observer (escucha SceneManager.sceneLoaded y eventos del boss).
+// Singleton DontDestroyOnLoad that controls background music by zone.
+// Pattern: Observer (listens to SceneManager.sceneLoaded and boss events).
 //
-// Flujo:
+// Flow:
 //   HV* → Celestial Kingdom
 //   MTN01–MTN09 → Enchanted Ruins
-//   PreMTN10 → para música, inicia cave ambience (loop)
-//   MTN10 → silencio hasta que el boss pase a Phase1
-//   Boss Phase1 → Mountain Storm (música de boss)
-//   Boss muerto → stop
+//   PreMTN10 → stop music, start cave ambience (loop)
+//   MTN10 → silence until boss enters Phase1
+//   Boss Phase1 → Mountain Storm (boss music)
+//   Boss dead → stop
 public class ZoneMusicController : MonoBehaviour
 {
     public static ZoneMusicController Instance { get; private set; }
@@ -32,9 +32,9 @@ public class ZoneMusicController : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
         _config = Resources.Load<ZoneMusicConfig>("ZoneMusicConfig");
-        SceneManager.sceneLoaded         += OnSceneLoaded;
-        BossObsesion.OnPhaseChanged      += OnBossPhaseChanged;
-        BossObsesion.OnBossDead          += OnBossDead;
+        SceneManager.sceneLoaded    += OnSceneLoaded;
+        BossObsesion.OnPhaseChanged += OnBossPhaseChanged;
+        BossObsesion.OnBossDead     += OnBossDead;
     }
 
     void OnDestroy()
@@ -54,35 +54,35 @@ public class ZoneMusicController : MonoBehaviour
     {
         if (_config == null || AudioManager.Instance == null) return;
 
-        if (sceneName.StartsWith("HV") && sceneName != "HV07")
+        if (sceneName.StartsWith("HV") && sceneName != EldoriaSceneNames.HV07)
         {
             AudioManager.Instance.PlayMusic(_config.hvMusic);
         }
-        else if (sceneName == "HV07")
+        else if (sceneName == EldoriaSceneNames.HV07)
         {
-            AudioManager.Instance.StopMusic();   // corredor silencioso entre Hub y Montañas
+            AudioManager.Instance.StopMusic();  // silent corridor between Hub and Mountains
         }
-        else if (sceneName.StartsWith("MTN") && sceneName != "MTN10")
+        else if (sceneName.StartsWith("MTN") && sceneName != EldoriaSceneNames.MTN10)
         {
             AudioManager.Instance.PlayMusic(_config.mtnMusic);
         }
-        else if (sceneName == "PreMTN10")
+        else if (sceneName == EldoriaSceneNames.PreMTN10)
         {
             AudioManager.Instance.PlayMusic(_config.caveAmbience);
         }
-        else if (sceneName == "MTN10")
+        else if (sceneName == EldoriaSceneNames.MTN10)
         {
             AudioManager.Instance.StopMusic();
         }
-        else if (sceneName == "MainMenu" || sceneName == "SlotsScreen")
+        else if (sceneName == EldoriaSceneNames.MainMenu || sceneName == EldoriaSceneNames.SlotsScreen)
         {
             AudioManager.Instance.PlayMusic(_config.menuMusic);
         }
-        else if (sceneName == "Intro")
+        else if (sceneName == EldoriaSceneNames.Intro)
         {
             AudioManager.Instance.StopMusic();
         }
-        // Settings no cambia la música — hereda lo que esté sonando (Hub, Montañas o menú)
+        // Settings does not change music — inherits whatever is currently playing
     }
 
     void OnBossPhaseChanged(BossObsesion.BossPhase phase)

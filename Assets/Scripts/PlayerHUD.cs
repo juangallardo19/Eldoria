@@ -3,34 +3,39 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
-// Patrón Singleton + Observer + State Machine (una AraIcon por vida).
-// DontDestroyOnLoad — persiste entre todas las escenas del juego.
-// Se oculta automáticamente en MainMenu, Settings, SlotsScreen, Intro.
-// Retrato en vivo: cámara secundaria ortográfica sigue la cara de Kael → RenderTexture → RawImage.
+// Pattern: Singleton + Observer + State Machine (one AraIcon per life).
+// DontDestroyOnLoad — persists across all game scenes.
+// Automatically hidden in MainMenu, Settings, SlotsScreen, Intro.
+// Live portrait: secondary orthographic camera tracks Kael's face → RenderTexture → RawImage.
 public class PlayerHUD : MonoBehaviour
 {
     public static PlayerHUD Instance { get; private set; }
 
     static readonly HashSet<string> s_HideScenes = new HashSet<string>
-        { "MainMenu", "Settings", "SlotsScreen", "Intro" };
+    {
+        EldoriaSceneNames.MainMenu,
+        EldoriaSceneNames.Settings,
+        EldoriaSceneNames.SlotsScreen,
+        EldoriaSceneNames.Intro,
+    };
 
-    // ── Layout (referencia 1920×1080) ──────────────────────────────────────────
-    const float PORTRAIT_SIZE  = 180f;   // tamaño del cuadro de retrato (cuadrado)
-    const float ARA_SIZE       = 110f;   // tamaño de cada icono Ara
-    const float ARA_GAP        = 10f;    // espacio entre Aras
-    const float GAP_PORT_ARAS  = 14f;    // espacio entre retrato y sección de Aras
+    // ── Layout (reference 1920×1080) ─────────────────────────────────────────
+    const float PORTRAIT_SIZE  = 180f;   // portrait frame size (square)
+    const float ARA_SIZE       = 110f;   // size of each Ara icon
+    const float ARA_GAP        = 10f;    // gap between Ara icons
+    const float GAP_PORT_ARAS  = 14f;    // gap between portrait and Ara section
     const float HUD_PAD_X      = 18f;
     const float HUD_PAD_Y      = 18f;
-    const float CONTAINER_PAD  = 14f;    // padding interior del container de Aras
+    const float CONTAINER_PAD  = 14f;    // inner padding of the Ara container
 
-    // ── Cámara de retrato ──────────────────────────────────────────────────────
-    // HEAD_OFFSET_Y: unidades sobre el pivot del jugador hasta el centro de la cara
-    // (sprite 128×128, PPU=16, pivot.y=0.4 → la cabeza está a ~3.5u sobre el pivot)
+    // ── Portrait camera ───────────────────────────────────────────────────────
+    // HEAD_OFFSET_Y: units above the player pivot to the face centre
+    // (sprite 128×128, PPU=16, pivot.y=0.4 → head is ~3.5u above the pivot)
     const float HEAD_OFFSET_Y  = 2.5f;
-    const float PORTRAIT_ORTHO = 1.8f;  // radio ortográfico en unidades mundo (zoom de cara)
-    const float CAM_Z_OFFSET   = -9f;   // la cámara de retrato está delante de la cámara principal
+    const float PORTRAIT_ORTHO = 1.8f;  // orthographic radius in world units (face zoom)
+    const float CAM_Z_OFFSET   = -9f;   // portrait camera sits in front of the main camera
 
-    const float KAEL_FPS = 10f;  // usado solo como fallback si la cámara falla
+    const float KAEL_FPS = 10f;  // fallback only if the camera fails
 
     PlayerHUDConfig  _cfg;
     CanvasGroup      _group;
@@ -50,7 +55,7 @@ public class PlayerHUD : MonoBehaviour
         DontDestroyOnLoad(go);
     }
 
-    // ── Ciclo de vida ─────────────────────────────────────────────────────────
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     void Awake()
     {
@@ -60,7 +65,7 @@ public class PlayerHUD : MonoBehaviour
         _cfg = Resources.Load<PlayerHUDConfig>("PlayerHUDConfig");
         if (_cfg == null)
         {
-            Debug.LogWarning("[PlayerHUD] PlayerHUDConfig no encontrado en Resources/. Ejecuta Eldoria/Setup Player HUD.");
+            Debug.LogWarning("[PlayerHUD] PlayerHUDConfig not found in Resources/. Run Eldoria/Setup Player HUD.");
             return;
         }
 
@@ -98,7 +103,7 @@ public class PlayerHUD : MonoBehaviour
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        _playerTransform = null;  // resetear caché — nuevo jugador en nueva escena
+        _playerTransform = null;  // reset cache — new player in new scene
         UpdateVisibility(scene.name);
         if (CrystalRespawnManager.Instance != null)
             SyncImmediate(CrystalRespawnManager.Instance.Lives);
@@ -149,13 +154,13 @@ public class PlayerHUD : MonoBehaviour
         }
     }
 
-    // ── Cámara de retrato en vivo ─────────────────────────────────────────────
+    // ── Live portrait camera ──────────────────────────────────────────────────
 
     void BuildPortraitCamera()
     {
-        // RenderTexture cuadrada para la cara de Kael
+        // Square RenderTexture for Kael's face
         _portraitRT = new RenderTexture(256, 256, 16, RenderTextureFormat.ARGB32);
-        _portraitRT.filterMode = FilterMode.Point;  // pixel art — sin interpolación
+        _portraitRT.filterMode = FilterMode.Point;  // pixel art — no interpolation
         _portraitRT.Create();
 
         var camGO = new GameObject("[PortraitCam]");
@@ -166,20 +171,20 @@ public class PlayerHUD : MonoBehaviour
         _portraitCam.orthographicSize = PORTRAIT_ORTHO;
         _portraitCam.clearFlags       = CameraClearFlags.SolidColor;
         _portraitCam.backgroundColor  = new Color(0.08f, 0.06f, 0.05f, 1f);
-        _portraitCam.depth            = -2;          // renderiza antes que la cámara principal
+        _portraitCam.depth            = -2;          // renders before the main camera
         _portraitCam.targetTexture    = _portraitRT;
         _portraitCam.nearClipPlane    = 0.3f;
         _portraitCam.farClipPlane     = 20f;
-        // Excluir capa UI del retrato para que el HUD no aparezca en su propio retrato
+        // Exclude UI layer from the portrait so the HUD doesn't appear inside its own portrait
         _portraitCam.cullingMask      = ~(1 << LayerMask.NameToLayer("UI"));
-        _portraitCam.enabled          = false;  // se activa en UpdateVisibility
+        _portraitCam.enabled          = false;  // enabled by UpdateVisibility
     }
 
     void UpdatePortraitCamera()
     {
         if (_portraitCam == null) return;
 
-        // Buscar jugador si no está cacheado
+        // Find player if not cached
         if (_playerTransform == null)
         {
             var pc = FindObjectOfType<PlayerController>();
@@ -193,11 +198,11 @@ public class PlayerHUD : MonoBehaviour
         }
     }
 
-    // ── Construcción de UI ────────────────────────────────────────────────────
+    // ── UI construction ───────────────────────────────────────────────────────
 
     void BuildUI()
     {
-        // Canvas raíz — sortingOrder 50 (encima del juego, bajo BossHUD 100 y PauseMenu 200)
+        // Root canvas — sortingOrder 50 (above game, below BossHUD 100 and PauseMenu 200)
         var cvGO = new GameObject("HUD_Canvas");
         cvGO.transform.SetParent(transform);
         var cv = cvGO.AddComponent<Canvas>();
@@ -214,7 +219,7 @@ public class PlayerHUD : MonoBehaviour
         scaler.matchWidthOrHeight  = 0.5f;
         cvGO.AddComponent<GraphicRaycaster>();
 
-        // ── Panel unificado: container cubre retrato + Aras ──────────────────
+        // ── Unified panel: container covers portrait + Aras ──────────────────
         float araRowW = 5f * ARA_SIZE + 4f * ARA_GAP;
         float hudW    = CONTAINER_PAD + PORTRAIT_SIZE + GAP_PORT_ARAS + araRowW + CONTAINER_PAD;
         float hudH    = Mathf.Max(PORTRAIT_SIZE, ARA_SIZE) + 2f * CONTAINER_PAD;
@@ -227,15 +232,15 @@ public class PlayerHUD : MonoBehaviour
         hudRt.anchoredPosition = new Vector2(HUD_PAD_X, -HUD_PAD_Y);
         hudRt.sizeDelta        = new Vector2(hudW, hudH);
 
-        // ── Container: carga el sprite directamente; HUDPanel sin fondo propio ─
+        // ── Container: loads sprite directly; HUDPanel has no own background ────
         Sprite containerSprite = _cfg.araContainer;
 #if UNITY_EDITOR
-        // Fallback directo: si el config no tiene el sprite, cargarlo ahora
+        // Direct fallback: if config has no sprite, load it now
         if (containerSprite == null)
             containerSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(
                 "Assets/UI/Sprites/Hud/Container/Container.png");
 #endif
-        Debug.Log($"[PlayerHUD] Container sprite: {(containerSprite != null ? containerSprite.name : "NULL — container no visible")}");
+        Debug.Log($"[PlayerHUD] Container sprite: {(containerSprite != null ? containerSprite.name : "NULL — container not visible")}");
 
         var cSprImg = hudGO.AddComponent<Image>();  // directamente en HUDPanel, no hijo
         if (containerSprite != null)
@@ -251,7 +256,7 @@ public class PlayerHUD : MonoBehaviour
         }
         cSprImg.raycastTarget = false;
 
-        // ── Retrato de Kael — izquierda del panel ────────────────────────────
+        // ── Kael's portrait — left side of the panel ─────────────────────────
         var rawGO = MakeRect("Portrait", hudGO.transform);
         var rawRt = rawGO.GetComponent<RectTransform>();
         rawRt.anchorMin        = new Vector2(0f, 0.5f);
@@ -263,7 +268,7 @@ public class PlayerHUD : MonoBehaviour
         _portraitRaw = rawGO.AddComponent<RawImage>();
         _portraitRaw.texture = _portraitRT;
 
-        // ── 5 iconos Ara — a la derecha del retrato ──────────────────────────
+        // ── 5 Ara icons — right of the portrait ──────────────────────────────
         float araStartX = CONTAINER_PAD + PORTRAIT_SIZE + GAP_PORT_ARAS;
         _aras = new AraIcon[5];
         for (int i = 0; i < 5; i++)
@@ -290,7 +295,7 @@ public class PlayerHUD : MonoBehaviour
         return go;
     }
 
-    // ── AraIcon — máquina de estados Idle→Damage→Low→Death→Dead ──────────────
+    // ── AraIcon — state machine Idle→Damage→Low→Death→Dead ───────────────────
     sealed class AraIcon
     {
         enum Phase { Idle, Damage, Low, Death, Dead }

@@ -1,15 +1,15 @@
 using UnityEngine;
 
-// Patrón Observer — bridge entre BossObsesion y el Animator.
-// Centraliza nombres de estados y duraciones para que BossObsesion no dependa de strings sueltos.
-// Duraciones calculadas con el frame rate de cada clip (los clips son creados por SetupBoss1).
+// Pattern: Observer — bridge between BossObsesion and the Animator.
+// Centralises state names and clip durations so BossObsesion doesn't depend on loose strings.
+// Durations calculated as: frame count / fps (clips are created by SetupBoss1).
 [RequireComponent(typeof(Animator))]
 public class BossObsesionAnimator : MonoBehaviour
 {
     private Animator _anim;
 
-    // ── Duraciones de clips (frame count / fps) ──────────────────────────────
-    public float SleepDuration       =>  0.5f;   // loop, irrelevante
+    // ── Clip durations (frame count / fps) ────────────────────────────────────
+    public float SleepDuration       =>  0.5f;   // loop, irrelevant
     public float WakeDuration        =>  1.5f;   // 12f / 8fps
     public float IdleDuration        =>  3.0f;   // 24f / 8fps (loop)
     public float MoveDuration        =>  2.0f;   // 24f / 12fps (loop)
@@ -47,7 +47,7 @@ public class BossObsesionAnimator : MonoBehaviour
             _anim.Play(stateName, 0, 0f);
     }
 
-    // Pausa/reanuda animaciones (usado en buff flash)
+    // Pause/resume animations (used for buff flash)
     public void Pause()  { if (_anim) _anim.speed = 0f; }
     public void Resume() { if (_anim) _anim.speed = 1f; }
 }

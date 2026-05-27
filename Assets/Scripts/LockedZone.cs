@@ -1,7 +1,7 @@
 using UnityEngine;
 using TMPro;
 
-// Patrón Command — zona secreta no desbloqueada. Muestra aviso TMP al entrar; nunca carga escena.
+// Pattern: Command — unlocked secret zone. Shows a TMP notice on entry; never loads a scene.
 [RequireComponent(typeof(Collider2D))]
 public class LockedZone : MonoBehaviour
 {
@@ -17,7 +17,7 @@ public class LockedZone : MonoBehaviour
         }
         else
         {
-            // Crear label programáticamente — no depende de un hijo preexistente en escena
+            // Create label programmatically — does not rely on a pre-existing scene child
             var labelGO = new GameObject("Label");
             labelGO.transform.SetParent(transform, false);
             labelGO.transform.localPosition = new Vector3(0f, 4f, 0f);

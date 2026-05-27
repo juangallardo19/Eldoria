@@ -1,21 +1,21 @@
 using UnityEngine;
 
-// Mueve el fondo con efecto parallax garantizando que siempre cubra la cámara.
-// Fórmula: bg = ref * (1-factor) + origin * factor
-//   factor=0 → sigue referencia exacto  |  factor=1 → fondo totalmente estático
-//   factor≈0.12 → fondo viaja al 88% de la velocidad de la referencia.
-// Patrón: Observer — reacciona a la posición de la cámara (o el jugador) cada frame en LateUpdate.
+// Moves the background with a parallax effect, guaranteeing it always covers the camera.
+// Formula: bg = ref * (1-factor) + origin * factor
+//   factor=0 → follows reference exactly  |  factor=1 → background fully static
+//   factor≈0.12 → background travels at 88% of the reference speed.
+// Pattern: Observer — reacts to the camera (or player) position every frame in LateUpdate.
 public class ParallaxBackground : MonoBehaviour
 {
-    [Tooltip("X: 0=sigue referencia, 1=estático. 0.12 = parallax sutil.")]
+    [Tooltip("X: 0=follows reference, 1=static. 0.12 = subtle parallax.")]
     [Range(0f, 1f)]
     public float parallaxFactor  = 0.12f;
 
-    [Tooltip("Y: 0=sigue referencia, 1=estático. Poner 1.0 para que el cielo no suba/baje.")]
+    [Tooltip("Y: 0=follows reference, 1=static. Use 1.0 to keep the sky from moving vertically.")]
     [Range(0f, 1f)]
     public float parallaxFactorY = 0.12f;
 
-    [Tooltip("Si está activo, sigue al jugador en vez de la cámara. Útil cuando la cámara es estática (FitRoom).")]
+    [Tooltip("When active, follows the player instead of the camera. Useful when the camera is static (FitRoom).")]
     public bool trackPlayer = false;
 
     private Camera    _cam;

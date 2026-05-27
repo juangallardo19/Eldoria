@@ -1,7 +1,7 @@
 using UnityEngine;
 
-// Proyectil simple del ataque a distancia del boss.
-// Viaja horizontalmente, aplica -1 vida al tocar al jugador, se destruye.
+// Simple projectile for the boss's ranged attack.
+// Travels horizontally, deals -1 life on player contact, then destroys itself.
 [RequireComponent(typeof(SpriteRenderer))]
 [RequireComponent(typeof(BoxCollider2D))]
 public class BossProjectile : MonoBehaviour

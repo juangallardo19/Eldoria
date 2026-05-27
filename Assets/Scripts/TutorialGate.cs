@@ -1,10 +1,10 @@
 using System;
 using UnityEngine;
 
-// Patrón Command — pared invisible que desaparece al detectar la acción requerida del jugador.
-// Retardo de 0.6s antes de activarse para evitar que inputs ya mantenidos disparen el gate.
-// La suscripción a eventos se hace DESPUÉS de que expira el timer (no en OnEnable),
-// así no hay race condition entre el timer y el evento.
+// Pattern: Command — invisible wall that disappears when the required player action is detected.
+// 0.6s delay before activating to prevent already-held inputs from firing the gate.
+// Event subscription happens AFTER the timer expires (not in OnEnable),
+// so there is no race condition between the timer and the event.
 [RequireComponent(typeof(BoxCollider2D))]
 public class TutorialGate : MonoBehaviour
 {
@@ -24,28 +24,28 @@ public class TutorialGate : MonoBehaviour
 
     void Start()
     {
-        // MoveBoth se detecta por polling: timer largo evita que una dirección ya presionada lo active.
-        // El resto son event-based: timer corto solo previene triggers del mismo frame.
+        // MoveBoth is detected by polling: long timer prevents an already-held direction from activating it.
+        // Others are event-based: short timer only prevents same-frame triggers.
         _activationTimer = requiredAction == GateAction.MoveBoth ? 0.6f : 0.15f;
     }
 
     void Update()
     {
-        // Periodo de gracia: decrementar timer, aún no escuchar
+        // Grace period: decrement timer, not yet listening
         if (_activationTimer > 0f)
         {
             _activationTimer -= Time.deltaTime;
             return;
         }
 
-        // Timer expirado — suscribir eventos una sola vez (para gates event-based)
+        // Timer expired — subscribe events once (for event-based gates)
         if (!_subscribed && requiredAction != GateAction.MoveBoth)
         {
             _subscribed = true;
             Subscribe();
         }
 
-        // Gate de movimiento: detectar input directo con teclas configuradas
+        // Movement gate: detect direct input with configured keys
         if (requiredAction == GateAction.MoveBoth)
         {
             var leftKey  = KeyRebindUI.GetKey("MoveLeft",  KeyCode.A);
@@ -73,7 +73,7 @@ public class TutorialGate : MonoBehaviour
 
     void OnDisable()
     {
-        // Siempre desuscribir al desactivarse (es seguro aunque no se haya suscrito)
+        // Always unsubscribe on disable (safe even if never subscribed)
         switch (requiredAction)
         {
             case GateAction.Jump:        PlayerController.OnPlayerJumped   -= Clear; break;

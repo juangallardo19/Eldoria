@@ -1,12 +1,12 @@
 using UnityEngine;
 
-// Marca un punto de aparición en la escena.
-// PlayerSpawnManager busca el SpawnPoint cuyo spawnId coincida con la entrada usada.
-// IDs convencionales:
-//   "default"  → spawn principal (centro o inicio)
-//   "left"     → jugador viene de la izquierda (ej: HV01 → HV02)
-//   "right"    → jugador viene de la derecha (ej: HV03 → HV02)
-//   "door_XXX" → jugador sale de la puerta cuyo targetScene es XXX
+// Marks a spawn point in the scene.
+// PlayerSpawnManager looks for the SpawnPoint whose spawnId matches the entry used.
+// Conventional IDs:
+//   "default"  → main spawn (centre or start)
+//   "left"     → player comes from the left  (e.g. HV01 → HV02)
+//   "right"    → player comes from the right (e.g. HV03 → HV02)
+//   "door_XXX" → player exits through the door whose targetScene is XXX
 public class SpawnPoint : MonoBehaviour
 {
     public string spawnId = "default";

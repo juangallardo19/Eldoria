@@ -5,30 +5,30 @@ using UnityEngine.SceneManagement;
 using TMPro;
 using System.Collections;
 
-// Command  — encapsula la acción "ir a la siguiente escena" (skip o fin natural).
-// Observer — el VideoPlayer notifica loopPointReached; IntroVideoManager reacciona.
+// Pattern: Command  — encapsulates the "go to the next scene" action (skip or natural end).
+//          Observer — VideoPlayer fires loopPointReached; IntroVideoManager reacts.
 public class IntroVideoManager : MonoBehaviour
 {
     [Header("Video")]
     [SerializeField] private VideoPlayer videoPlayer;
     [SerializeField] private RawImage    videoDisplay;
 
-    [Header("Subtítulos")]
-    [SerializeField] private GameObject      subtitleBox;   // panel raíz (Image de fondo)
+    [Header("Subtitles")]
+    [SerializeField] private GameObject      subtitleBox;   // root panel (background Image)
     [SerializeField] private TextMeshProUGUI subtitleText;
     [SerializeField] private SubtitleData    subtitleData;
 
-    [Header("UI de skip")]
+    [Header("Skip UI")]
     [SerializeField] private TextMeshProUGUI skipHint;     // "[ ESPACIO / Z ] Saltar"
 
-    [Header("Escena destino")]
-    [SerializeField] private string nextScene = "HV01_Interior";
+    [Header("Destination scene")]
+    [SerializeField] private string nextScene = EldoriaSceneNames.HV01_Interior;
 
     [Header("Skip")]
-    [SerializeField] private float skipHoldSeconds = 1.2f; // tiempo que hay que mantener para saltar
+    [SerializeField] private float skipHoldSeconds = 1.2f; // hold duration required to skip
 
-    // Reutilizamos el RenderTexture del BackgroundVideoManager si existe;
-    // si no, creamos uno propio para no depender del singleton de fondo.
+    // Reuse the BackgroundVideoManager RenderTexture if it exists; otherwise create a
+    // local one so we don't depend on the background singleton.
     private RenderTexture _rt;
     private bool          _exiting;
     private float         _holdTimer;
@@ -37,13 +37,13 @@ public class IntroVideoManager : MonoBehaviour
     // ─────────────────────────────────────────────────────────────────────
     void Start()
     {
-        // La música solo debe sonar en MainMenu y Settings
+        // Music should only play in MainMenu and Settings
         AudioManager.Instance?.StopMusic();
 
         if (subtitleBox != null) subtitleBox.SetActive(false);
         if (skipHint    != null) UpdateSkipHint(0f);
 
-        // RenderTexture para el VideoPlayer
+        // RenderTexture for the VideoPlayer
         _rt                        = new RenderTexture(1920, 1080, 0);
         videoPlayer.targetTexture  = _rt;
         if (videoDisplay != null) videoDisplay.texture = _rt;
@@ -61,7 +61,7 @@ public class IntroVideoManager : MonoBehaviour
         HandleSkipInput();
     }
 
-    // ── Subtítulos ────────────────────────────────────────────────────────
+    // ── Subtitles ─────────────────────────────────────────────────────────
     private void UpdateSubtitles()
     {
         if (subtitleData == null || subtitleData.entries == null) return;
@@ -84,7 +84,7 @@ public class IntroVideoManager : MonoBehaviour
             subtitleText.text = subtitleData.entries[found].text;
     }
 
-    // ── Skip por tecla (mantener o pulsar) ───────────────────────────────
+    // ── Skip input (hold or press) ────────────────────────────────────────
     private void HandleSkipInput()
     {
         bool held = Input.anyKey;
@@ -116,10 +116,10 @@ public class IntroVideoManager : MonoBehaviour
             : $"[ ESPACIO / Z ]  Saltando… {pct}%";
     }
 
-    // ── Fin del video ─────────────────────────────────────────────────────
+    // ── Video end ─────────────────────────────────────────────────────────
     private void OnVideoEnd(VideoPlayer vp) => ExitIntro();
 
-    // ── Transición a la siguiente escena ──────────────────────────────────
+    // ── Transition to the next scene ──────────────────────────────────────
     private void ExitIntro()
     {
         if (_exiting) return;

@@ -3,23 +3,23 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 
-// Menú: Eldoria/Setup All Enemies
+// Menu: Eldoria/Setup All Enemies
 //
-// Coloca SombraNinja y SombraMago en todas las escenas MTN según el diseño:
-//   MTN02 → 1 ninja  (ya hecho con SetupSombraNinja, se recoloca para idempotencia)
-//   MTN04 → 1 mago
-//   MTN05 → 1 ninja + 1 mago
-//   MTN06 → 1 ninja + 2 magos
-//   MTN08 → 2 ninjas + 3 magos
-//   MTN09 → ninguno (santuario de Ara — zona libre de enemigos)
+// Places SombraNinja and SombraMago in all MTN scenes according to the design:
+//   MTN02 → 1 ninja  (already done via SetupSombraNinja, re-placed for idempotency)
+//   MTN04 → 1 mage
+//   MTN05 → 1 ninja + 1 mage
+//   MTN06 → 1 ninja + 2 mages
+//   MTN08 → 2 ninjas + 3 mages
+//   MTN09 → none (Ara's sanctuary — enemy-free rest zone)
 //
-// Prerequisitos (ejecutar una vez antes):
-//   · Eldoria/SombraNinja/1 - Importar Sprites
-//   · Eldoria/SombraMago/1  - Importar Sprites
-//   · Eldoria/SombraMago/2  - Crear Prefab Proyectil
+// Prerequisites (run once first):
+//   · Eldoria/SombraNinja/1 - Import Sprites
+//   · Eldoria/SombraMago/1  - Import Sprites
+//   · Eldoria/SombraMago/2  - Create Projectile Prefab
 //
-// Carga cada escena en modo Single, coloca los enemigos y la guarda.
-// AVISO: cerrará la escena activa actual.
+// Opens each scene in Single mode, places enemies, and saves it.
+// WARNING: will close the currently active scene.
 public static class SetupAllEnemies
 {
     // ── Rutas ──────────────────────────────────────────────────────────────────

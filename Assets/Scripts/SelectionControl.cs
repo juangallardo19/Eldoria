@@ -3,8 +3,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-/// Control de selección estilo "< Opción >" con botones izquierda/derecha.
-/// Reemplaza al TMP_Dropdown para opciones simples con pocos valores.
+/// Left/right arrow selector control ("< Option >").
+/// Replaces TMP_Dropdown for simple lists with few values.
 public class SelectionControl : MonoBehaviour
 {
     [SerializeField] private Button    leftButton;

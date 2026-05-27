@@ -1,7 +1,7 @@
 using UnityEngine;
 
-// Datos de conexión entre dos zonas del mapa. Adjuntado a cada objeto Line.
-// WorldMapController lo usa para mostrar/ocultar la línea según descubrimiento.
+// Connection data between two map zones. Attached to each Line object.
+// WorldMapController uses it to show/hide the line based on discovery state.
 public class WorldMapLine : MonoBehaviour
 {
     public string zoneIdA;
