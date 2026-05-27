@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using TMPro;
 
-// Patrón Command — NPC que el jugador puede activar con E para disparar un diálogo.
+// Pattern: Command — NPC the player can interact with via E to trigger a dialogue.
 [RequireComponent(typeof(Collider2D))]
 public class NPCInteract : MonoBehaviour
 {

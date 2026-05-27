@@ -128,7 +128,7 @@ public class BossHealthBar : MonoBehaviour
         hudRt.anchoredPosition = new Vector2(0f, 210f); // top edge 210px from bottom
         hudRt.sizeDelta        = new Vector2(0f, 288f); // full width (Left=0, Right=0)
 
-        // ── BarContainer: top-center del HUDGroup, 800×260 ───────────────────
+        // ── BarContainer: top-center of HUDGroup, 800×260 ───────────────────
         var barGO = new GameObject("BarContainer");
         barGO.transform.SetParent(hudGO.transform, false);
         barGO.AddComponent<RectTransform>();

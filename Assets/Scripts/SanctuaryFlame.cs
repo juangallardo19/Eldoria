@@ -31,7 +31,11 @@ public class SanctuaryFlame : MonoBehaviour
     private bool      _playerNear;
     private bool      _resting;
     private float     _nearTimer;
-    private const float InteractHoldDuration = 0.4f;  // seconds player must be near before E works
+    private const float InteractHoldDuration  = 0.4f;  // seconds player must be near before E works
+    private const float EMISSION_NEAR         = 38f;
+    private const float EMISSION_IDLE         = 20f;
+    private const float EMISSION_RESTING      = 80f;
+    private const float SECONDARY_FLICKER_MULT = 0.4f; // harmonic at 2.17× speed, 40% amplitude
 
     void Start()
     {
@@ -59,7 +63,7 @@ public class SanctuaryFlame : MonoBehaviour
         {
             float alpha = baseAlpha
                 + Mathf.Sin(Time.time * flickerSpeed)          * flickerAmplitude
-                + Mathf.Sin(Time.time * flickerSpeed * 2.17f)  * flickerAmplitude * 0.4f;
+                + Mathf.Sin(Time.time * flickerSpeed * 2.17f)  * flickerAmplitude * SECONDARY_FLICKER_MULT;
             var c = glowRenderer.color;
             c.a = Mathf.Clamp01(alpha);
             glowRenderer.color = c;
@@ -85,7 +89,7 @@ public class SanctuaryFlame : MonoBehaviour
             if (flameParticles != null)
             {
                 var emission = flameParticles.emission;
-                emission.rateOverTime = near ? 38f : 20f;
+                emission.rateOverTime = near ? EMISSION_NEAR : EMISSION_IDLE;
             }
         }
 
@@ -131,7 +135,7 @@ public class SanctuaryFlame : MonoBehaviour
         if (flameParticles != null)
         {
             var emission = flameParticles.emission;
-            emission.rateOverTime = 80f;
+            emission.rateOverTime = EMISSION_RESTING;
         }
 
         yield return new WaitForSeconds(2f);
@@ -139,7 +143,7 @@ public class SanctuaryFlame : MonoBehaviour
         if (flameParticles != null)
         {
             var emission = flameParticles.emission;
-            emission.rateOverTime = _playerNear ? 38f : 20f;
+            emission.rateOverTime = _playerNear ? EMISSION_NEAR : EMISSION_IDLE;
         }
 
         if (promptText != null)

@@ -1,5 +1,5 @@
-// Interfaz que deben implementar todos los objetos que reciben daño (enemigos, destructibles).
-// Patrón: Strategy — desacopla al atacante del tipo concreto de objetivo.
+// Interface all damageable objects must implement (enemies, destructibles).
+// Pattern: Strategy — decouples the attacker from the concrete target type.
 public interface IDamageable
 {
     void TakeDamage(int damage);

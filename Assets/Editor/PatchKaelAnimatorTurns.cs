@@ -3,9 +3,9 @@ using UnityEditor;
 using UnityEditor.Animations;
 using System.Linq;
 
-// Menú: Eldoria/Kael/Remove Animator Turns
-// Elimina los estados IdleTurn, RunTurn, WalkTurn, RunToIdle y sus parámetros
-// del KaelAnimator.controller, dejando solo las animaciones base.
+// Menu: Eldoria/Kael/Remove Animator Turns
+// Removes states IdleTurn, RunTurn, WalkTurn, RunToIdle and their parameters
+// from KaelAnimator.controller, leaving only the base animations.
 public static class PatchKaelAnimatorTurns
 {
     const string CtrlPath = "Assets/Animations/Kael/KaelAnimator.controller";
@@ -20,7 +20,7 @@ public static class PatchKaelAnimatorTurns
         if (ctrl == null)
         {
             EditorUtility.DisplayDialog("Eldoria",
-                "No se encontró KaelAnimator.controller en " + CtrlPath, "OK");
+                "KaelAnimator.controller not found at " + CtrlPath, "OK");
             return;
         }
 
@@ -28,33 +28,33 @@ public static class PatchKaelAnimatorTurns
 
         foreach (var name in TurnNames)
         {
-            // ── Eliminar transiciones AnyState → estado ───────────────────
+            // ── Remove AnyState → state transitions ───────────────────────
             foreach (var t in sm.anyStateTransitions
                 .Where(t => t.destinationState?.name == name).ToArray())
             {
                 sm.RemoveAnyStateTransition(t);
-                Debug.Log($"[UnpatchKael] Transición AnyState → '{name}' eliminada.");
+                Debug.Log($"[UnpatchKael] AnyState → '{name}' transition removed.");
             }
 
-            // ── Eliminar estado ───────────────────────────────────────────
+            // ── Remove state ──────────────────────────────────────────────
             var stateMatch = sm.states.FirstOrDefault(s => s.state.name == name);
             if (stateMatch.state != null)
             {
                 sm.RemoveState(stateMatch.state);
-                Debug.Log($"[UnpatchKael] Estado '{name}' eliminado.");
+                Debug.Log($"[UnpatchKael] State '{name}' removed.");
             }
 
-            // ── Eliminar parámetro ────────────────────────────────────────
+            // ── Remove parameter ──────────────────────────────────────────
             var param = ctrl.parameters.FirstOrDefault(p => p.name == name);
             if (param != null)
             {
                 ctrl.RemoveParameter(param);
-                Debug.Log($"[UnpatchKael] Parámetro '{name}' eliminado.");
+                Debug.Log($"[UnpatchKael] Parameter '{name}' removed.");
             }
         }
 
         EditorUtility.SetDirty(ctrl);
         AssetDatabase.SaveAssets();
-        Debug.Log("[UnpatchKael] ✓ KaelAnimator limpiado — solo animaciones base.");
+        Debug.Log("[UnpatchKael] ✓ KaelAnimator cleaned — base animations only.");
     }
 }

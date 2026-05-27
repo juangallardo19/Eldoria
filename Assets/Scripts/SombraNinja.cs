@@ -34,7 +34,7 @@ public class SombraNinja : MonoBehaviour, IDamageable
     [SerializeField] private float patrolLeft  = -10f;
     [SerializeField] private float patrolRight = +10f;
 
-    // ── Animación ──────────────────────────────────────────────────────────────
+    // ── Animation ─────────────────────────────────────────────────────────────
     [Header("Animation frames (assigned by SetupSombraNinja)")]
     [SerializeField] private Sprite[] idleFrames;
     [SerializeField] private Sprite[] attackFrames;

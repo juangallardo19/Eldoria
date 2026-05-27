@@ -203,7 +203,7 @@ public class LocalizationManager : MonoBehaviour
         return false;
     }
 
-    /// 0 = Español, 1 = English.
+    /// 0 = Spanish, 1 = English.
     public static void SetLanguage(int index)
     {
         string code = index == 0 ? "es" : "en";

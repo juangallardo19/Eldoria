@@ -39,7 +39,7 @@ public class PlayerHUD : MonoBehaviour
 
     PlayerHUDConfig  _cfg;
     CanvasGroup      _group;
-    RawImage         _portraitRaw;   // muestra el RenderTexture de la cámara de cara
+    RawImage         _portraitRaw;   // displays the RenderTexture from the face camera
     Camera           _portraitCam;
     RenderTexture    _portraitRT;
     Transform        _playerTransform;
@@ -242,7 +242,7 @@ public class PlayerHUD : MonoBehaviour
 #endif
         Debug.Log($"[PlayerHUD] Container sprite: {(containerSprite != null ? containerSprite.name : "NULL — container not visible")}");
 
-        var cSprImg = hudGO.AddComponent<Image>();  // directamente en HUDPanel, no hijo
+        var cSprImg = hudGO.AddComponent<Image>();  // directly on HUDPanel, not a child
         if (containerSprite != null)
         {
             cSprImg.sprite         = containerSprite;

@@ -3,8 +3,8 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 
-// Tutorial de dash — aparece tras desbloquear el dash y no desaparece hasta que el jugador presione C.
-// Se instancia como GO independiente desde BossObsesion.DefeatedSequence.
+// Dash tutorial — appears after unlocking dash and stays until the player presses C.
+// Instantiated as a standalone GO from BossObsesion.DefeatedSequence.
 public class DashTutorialPrompt : MonoBehaviour
 {
     void Start() => StartCoroutine(Run());
@@ -21,7 +21,7 @@ public class DashTutorialPrompt : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920, 1080);
         canvasGO.AddComponent<GraphicRaycaster>();
 
-        // ── Fondo semi-transparente ───────────────────────────────────────────
+        // ── Semi-transparent background ───────────────────────────────────────
         var bgGO  = new GameObject("Bg");
         bgGO.transform.SetParent(canvasGO.transform, false);
         var bgImg = bgGO.AddComponent<Image>();
@@ -33,7 +33,7 @@ public class DashTutorialPrompt : MonoBehaviour
         bgRt.anchoredPosition = new Vector2(0f, 80f);
         bgRt.sizeDelta        = new Vector2(620f, 70f);
 
-        // ── Texto ─────────────────────────────────────────────────────────────
+        // ── Text label ───────────────────────────────────────────────────────
         var textGO = new GameObject("Text");
         textGO.transform.SetParent(canvasGO.transform, false);
         var tmp = textGO.AddComponent<TextMeshProUGUI>();
@@ -55,11 +55,11 @@ public class DashTutorialPrompt : MonoBehaviour
         rt.anchoredPosition = new Vector2(0f, 88f);
         rt.sizeDelta        = new Vector2(600f, 60f);
 
-        // ── Parpadeo del texto ─────────────────────────────────────────────────
+        // ── Text blink ────────────────────────────────────────────────────────
         StartCoroutine(BlinkText(tmp));
 
-        // ── Esperar hasta que el jugador presione C ────────────────────────────
-        yield return new WaitForSeconds(0.5f);   // breve delay para no leer la E del boss
+        // ── Wait until the player presses C ───────────────────────────────────
+        yield return new WaitForSeconds(0.5f);   // brief delay so the boss's E input isn't captured
         while (!Input.GetKeyDown(KeyCode.C))
             yield return null;
 

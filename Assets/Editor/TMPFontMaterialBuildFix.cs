@@ -50,7 +50,7 @@ public class TMPFontMaterialBuildFix : IPreprocessBuildWithReport
         EditorUtility.SetDirty(font);
         AssetDatabase.SaveAssets();
 
-        Debug.Log($"[TMPFontMaterialBuildFix] ✓ Material '{embeddedMat.name}' asignado a '{font.name}'.");
+        Debug.Log($"[TMPFontMaterialBuildFix] ✓ Material '{embeddedMat.name}' assigned to '{font.name}'.");
     }
 }
 #endif

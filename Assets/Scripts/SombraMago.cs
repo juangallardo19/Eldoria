@@ -57,7 +57,7 @@ public class SombraMago : MonoBehaviour, IDamageable
     private Rigidbody2D    _rb;
     private Transform      _player;
 
-    // Animación
+    // Animation
     private Sprite[] _curAnim;
     private float    _curFps;
     private int      _frameIdx;
@@ -69,7 +69,7 @@ public class SombraMago : MonoBehaviour, IDamageable
     private float _attackElapsed;
     private bool  _projectileFired;
 
-    // Dirección
+    // Facing direction
     private float _patrolDir = 1f;
     private float _facingDir = 1f;
 

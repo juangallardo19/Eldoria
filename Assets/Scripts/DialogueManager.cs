@@ -24,7 +24,7 @@ public class DialogueManager : MonoBehaviour
 
     // ── Layout (reference 1920×1080) ──────────────────────────────────────
     const float PANEL_H       = 200f;
-    const float PANEL_PAD_Y   = 0f;     // pegado al borde superior
+    const float PANEL_PAD_Y   = 0f;     // flush against the top edge
     const float PORTRAIT_SIZE = 160f;
     const float INNER_PAD     = 18f;
     const float NAME_H        = 36f;

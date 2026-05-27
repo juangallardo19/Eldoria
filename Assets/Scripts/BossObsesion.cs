@@ -316,7 +316,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
         {
             BossPhase.Phase1 => 2,
             BossPhase.Phase2 => 3,
-            _                => 4,  // Phase3: obsesión total
+            _                => 4,  // Phase3: total obsession
         };
 
         if (!string.IsNullOrEmpty(_lastAttack) && _repeatCount < maxRepeat && Random.value < 0.55f)
@@ -456,7 +456,7 @@ public class BossObsesion : MonoBehaviour, IDamageable
 
     private IEnumerator DoSuper()
     {
-        yield return StartCoroutine(ObsessiveTwitch());  // temblor de carga
+        yield return StartCoroutine(ObsessiveTwitch());  // charge windup twitch
 
         _anim.PlaySuper();
         yield return new WaitForSeconds(1.0f);   // windup: frames 0-9

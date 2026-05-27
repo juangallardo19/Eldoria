@@ -38,6 +38,18 @@ public class WorldMapController : MonoBehaviour
     private Transform _tutorialMarkerTr = null;
     private float     _tutorialPulseT   = 0f;
 
+    // ── Pulse animation constants ────────────────────────────────────────
+    private const float PULSE_SPEED        = 0.45f;  // timer increment per second
+    private const float CURRENT_SCALE_AMP  = 0.04f;  // +4% max scale for current zone
+    private const float CURRENT_TINT_AMP   = 0.45f;  // max blue tint strength for current zone
+    private static readonly Color CURRENT_TINT_COLOR   = new Color(0.5f, 0.8f, 1f, 1f);
+    private const float TUTORIAL_FREQ      = 3f;      // pulse frequency (× π) for tutorial zone
+    private const float TUTORIAL_SCALE_AMP = 0.07f;  // +7% max scale for tutorial target zone
+    private const float TUTORIAL_TINT_BASE = 0.35f;  // minimum yellow tint on tutorial zone
+    private const float TUTORIAL_TINT_AMP  = 0.4f;   // additional yellow tint amplitude
+    private static readonly Color TUTORIAL_TINT_COLOR  = new Color(1f, 0.88f, 0f, 1f);
+    private const float MARKER_SCALE_AMP   = 0.3f;   // +30% max scale for "!" marker
+
     public void SetTutorialObjective(string zoneId) { _tutorialObjZone = zoneId; _tutorialPulseT = 0f; }
     public void ClearTutorialObjective() { _tutorialObjZone = null; HideTutorialMarker(); }
 
@@ -149,17 +161,17 @@ public class WorldMapController : MonoBehaviour
 
         if (_mapOpen)
         {
-            _pulseTimer += Time.unscaledDeltaTime * 0.45f;
+            _pulseTimer += Time.unscaledDeltaTime * PULSE_SPEED;
             float sinVal  = 0.5f + 0.5f * Mathf.Sin(_pulseTimer * Mathf.PI * 2f);
-            float scale   = 1f + 0.04f * sinVal;
-            float tintAmt = 0.45f * sinVal;
+            float scale   = 1f + CURRENT_SCALE_AMP * sinVal;
+            float tintAmt = CURRENT_TINT_AMP * sinVal;
             UpdateCurrentPulse(scale, tintAmt);
 
             // Yellow pulse for tutorial target zone
             if (!string.IsNullOrEmpty(_tutorialObjZone))
             {
                 _tutorialPulseT += Time.unscaledDeltaTime;
-                float tSin = 0.5f + 0.5f * Mathf.Sin(_tutorialPulseT * Mathf.PI * 3f);
+                float tSin = 0.5f + 0.5f * Mathf.Sin(_tutorialPulseT * Mathf.PI * TUTORIAL_FREQ);
                 EnsureTutorialMarker();
                 UpdateTutorialObjPulse(tSin);
             }
@@ -309,7 +321,7 @@ public class WorldMapController : MonoBehaviour
             {
                 sec.transform.localScale = Vector3.one * scale;
                 if (sec.sectionImage != null)
-                    sec.sectionImage.color = Color.Lerp(Color.white, new Color(0.5f, 0.8f, 1f, 1f), tintAmt);
+                    sec.sectionImage.color = Color.Lerp(Color.white, CURRENT_TINT_COLOR, tintAmt);
             }
             else
             {
@@ -398,12 +410,12 @@ public class WorldMapController : MonoBehaviour
         {
             if (sec == null || !sec.gameObject.activeSelf || sec.zoneId != _tutorialObjZone) continue;
             // +7% scale and yellow tint
-            sec.transform.localScale = Vector3.one * (1f + 0.07f * t);
+            sec.transform.localScale = Vector3.one * (1f + TUTORIAL_SCALE_AMP * t);
             if (sec.sectionImage != null)
-                sec.sectionImage.color = Color.Lerp(Color.white, new Color(1f, 0.88f, 0f, 1f), 0.35f + 0.4f * t);
+                sec.sectionImage.color = Color.Lerp(Color.white, TUTORIAL_TINT_COLOR, TUTORIAL_TINT_BASE + TUTORIAL_TINT_AMP * t);
             // "!" pulse
             if (_tutorialMarkerTr != null)
-                _tutorialMarkerTr.localScale = Vector3.one * (1f + 0.3f * t);
+                _tutorialMarkerTr.localScale = Vector3.one * (1f + MARKER_SCALE_AMP * t);
             return;
         }
     }

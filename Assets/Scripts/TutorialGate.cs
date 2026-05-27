@@ -18,7 +18,7 @@ public class TutorialGate : MonoBehaviour
     bool  _subscribed;
     float _activationTimer;
 
-    // Para MoveBoth: rastrear cada dirección por separado
+    // For MoveBoth: track each direction independently
     bool _movedLeft;
     bool _movedRight;
 

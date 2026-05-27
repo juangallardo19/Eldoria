@@ -74,26 +74,6 @@ public class SettingsManager : MonoBehaviour
     [Header("Navigation")]
     [SerializeField] private Button backButton;
 
-    // ── PlayerPrefs keys ──────────────────────────────────────────────────
-    private const string K_SCREEN_MODE       = "ScreenMode";
-    private const string K_FPS               = "FPS";
-    private const string K_VSYNC             = "VSync";
-    private const string K_QUALITY           = "Quality";
-    private const string K_RESOLUTION        = "Resolution";
-    private const string K_BRIGHTNESS        = "Brightness";
-    private const string K_CONTRAST          = "Contrast";
-    private const string K_SATURATION        = "Saturation";
-    private const string K_COLOR_BLIND       = "ColorBlind";
-    private const string K_COLOR_BLIND_TYPE  = "ColorBlindType";
-    private const string K_COLOR_BLIND_INT   = "ColorBlindIntensity";
-    private const string K_SHOW_FPS          = "ShowFPS";
-    private const string K_MASTER_VOL        = "MasterVolume";
-    private const string K_MUSIC_VOL         = "MusicVolume";
-    private const string K_SFX_VOL           = "SFXVolume";
-    private const string K_VOICES_VOL        = "VoicesVolume";
-    private const string K_UI_VOL            = "UIVolume";
-    private const string K_LANGUAGE          = "Language";
-
     private static readonly string[] TabNames = { "GRÁFICOS", "SONIDO", "CONTROLES", "AJUSTES" };
     private static readonly FullScreenMode[] ScreenModes =
     {
@@ -184,12 +164,12 @@ public class SettingsManager : MonoBehaviour
         {
             resolutionSelector.SetOptions(new List<string>
                 { "1920 × 1080", "1600 × 900", "1200 × 675" });
-            resolutionSelector.value = PlayerPrefs.GetInt(K_RESOLUTION, 0);
+            resolutionSelector.value = PlayerPrefs.GetInt(EldoriaPrefsKeys.Resolution, 0);
             resolutionSelector.onValueChanged += idx =>
             {
                 var (w, h) = FixedResolutions[Mathf.Clamp(idx, 0, FixedResolutions.Length - 1)];
                 Screen.SetResolution(w, h, Screen.fullScreenMode);
-                PlayerPrefs.SetInt(K_RESOLUTION, idx);
+                PlayerPrefs.SetInt(EldoriaPrefsKeys.Resolution, idx);
             };
         }
 
@@ -202,11 +182,11 @@ public class SettingsManager : MonoBehaviour
                 LocalizationManager.Get("Sin bordes"),
                 LocalizationManager.Get("Ventana")
             });
-            screenModeSelector.value = PlayerPrefs.GetInt(K_SCREEN_MODE, 0);
+            screenModeSelector.value = PlayerPrefs.GetInt(EldoriaPrefsKeys.ScreenMode, 0);
             screenModeSelector.onValueChanged += idx =>
             {
                 Screen.fullScreenMode = ScreenModes[Mathf.Clamp(idx, 0, 2)];
-                PlayerPrefs.SetInt(K_SCREEN_MODE, idx);
+                PlayerPrefs.SetInt(EldoriaPrefsKeys.ScreenMode, idx);
                 OnFullscreenChanged?.Invoke(idx == 0);
             };
         }
@@ -216,25 +196,25 @@ public class SettingsManager : MonoBehaviour
         {
             fpsSelector.SetOptions(new List<string>
                 { "30", "60", "120", "144", LocalizationManager.Get("Sin límite") });
-            int savedFps = PlayerPrefs.GetInt(K_FPS, 4); // Unlimited by default (index 4)
+            int savedFps = PlayerPrefs.GetInt(EldoriaPrefsKeys.FPS, 4); // Unlimited by default (index 4)
             fpsSelector.value = savedFps;
             Application.targetFrameRate = FpsValues[Mathf.Clamp(savedFps, 0, FpsValues.Length - 1)];
             fpsSelector.onValueChanged += idx =>
             {
                 Application.targetFrameRate = FpsValues[Mathf.Clamp(idx, 0, FpsValues.Length - 1)];
-                PlayerPrefs.SetInt(K_FPS, idx);
+                PlayerPrefs.SetInt(EldoriaPrefsKeys.FPS, idx);
             };
         }
 
         // VSync toggle
         if (vsyncToggle != null)
         {
-            vsyncToggle.isOn = PlayerPrefs.GetInt(K_VSYNC, 0) == 1;
+            vsyncToggle.isOn = PlayerPrefs.GetInt(EldoriaPrefsKeys.VSync, 0) == 1;
             QualitySettings.vSyncCount = vsyncToggle.isOn ? 1 : 0;
             vsyncToggle.onValueChanged.AddListener(on =>
             {
                 QualitySettings.vSyncCount = on ? 1 : 0;
-                PlayerPrefs.SetInt(K_VSYNC, on ? 1 : 0);
+                PlayerPrefs.SetInt(EldoriaPrefsKeys.VSync, on ? 1 : 0);
             });
         }
 
@@ -247,24 +227,24 @@ public class SettingsManager : MonoBehaviour
                 LocalizationManager.Get("Medio"),
                 LocalizationManager.Get("Alto")
             });
-            qualitySelector.value = PlayerPrefs.GetInt(K_QUALITY, 1);
+            qualitySelector.value = PlayerPrefs.GetInt(EldoriaPrefsKeys.Quality, 1);
             qualitySelector.onValueChanged += idx =>
             {
                 int[] map = { 0, 2, 5 };
                 QualitySettings.SetQualityLevel(map[Mathf.Clamp(idx, 0, 2)], true);
-                PlayerPrefs.SetInt(K_QUALITY, idx);
+                PlayerPrefs.SetInt(EldoriaPrefsKeys.Quality, idx);
             };
         }
 
         // Visual — Brightness / Contrast / Saturation
         ScreenEffectsManager.EnsureExists();
-        SetupVisualSlider(brightnessSlider,  K_BRIGHTNESS,  0.5f);
-        SetupVisualSlider(contrastSlider,    K_CONTRAST,    0.5f);
-        SetupVisualSlider(saturationSlider,  K_SATURATION,  0.5f);
+        SetupVisualSlider(brightnessSlider,  EldoriaPrefsKeys.Brightness,  0.5f);
+        SetupVisualSlider(contrastSlider,    EldoriaPrefsKeys.Contrast,    0.5f);
+        SetupVisualSlider(saturationSlider,  EldoriaPrefsKeys.Saturation,  0.5f);
         ApplyVisualEffects();
 
         // Accessibility — Color blindness
-        bool cbActive = PlayerPrefs.GetInt(K_COLOR_BLIND, 0) == 1;
+        bool cbActive = PlayerPrefs.GetInt(EldoriaPrefsKeys.ColorBlind, 0) == 1;
         if (colorBlindOptionsGroup != null) colorBlindOptionsGroup.SetActive(cbActive);
 
         if (colorBlindToggle != null)
@@ -273,7 +253,7 @@ public class SettingsManager : MonoBehaviour
             colorBlindToggle.onValueChanged.AddListener(active =>
             {
                 if (colorBlindOptionsGroup != null) colorBlindOptionsGroup.SetActive(active);
-                PlayerPrefs.SetInt(K_COLOR_BLIND, active ? 1 : 0);
+                PlayerPrefs.SetInt(EldoriaPrefsKeys.ColorBlind, active ? 1 : 0);
             });
         }
 
@@ -281,18 +261,18 @@ public class SettingsManager : MonoBehaviour
         {
             colorBlindTypeSelector.SetOptions(new List<string>
                 { "Protanopia", "Deuteranopia", "Tritanopia" });
-            colorBlindTypeSelector.value = PlayerPrefs.GetInt(K_COLOR_BLIND_TYPE, 0);
+            colorBlindTypeSelector.value = PlayerPrefs.GetInt(EldoriaPrefsKeys.ColorBlindType, 0);
             colorBlindTypeSelector.onValueChanged += idx =>
-                PlayerPrefs.SetInt(K_COLOR_BLIND_TYPE, idx);
+                PlayerPrefs.SetInt(EldoriaPrefsKeys.ColorBlindType, idx);
         }
 
         if (colorBlindIntensitySlider != null)
         {
             colorBlindIntensitySlider.minValue = 0f;
             colorBlindIntensitySlider.maxValue = 1f;
-            colorBlindIntensitySlider.value = PlayerPrefs.GetFloat(K_COLOR_BLIND_INT, 1f);
+            colorBlindIntensitySlider.value = PlayerPrefs.GetFloat(EldoriaPrefsKeys.ColorBlindIntensity, 1f);
             colorBlindIntensitySlider.onValueChanged.AddListener(v =>
-                PlayerPrefs.SetFloat(K_COLOR_BLIND_INT, v));
+                PlayerPrefs.SetFloat(EldoriaPrefsKeys.ColorBlindIntensity, v));
         }
     }
 
@@ -306,38 +286,38 @@ public class SettingsManager : MonoBehaviour
 
     private void ApplyVisualEffects()
     {
-        float b = brightnessSlider  != null ? brightnessSlider.value  : PlayerPrefs.GetFloat(K_BRIGHTNESS,  0.5f);
-        float c = contrastSlider    != null ? contrastSlider.value    : PlayerPrefs.GetFloat(K_CONTRAST,    0.5f);
-        float s = saturationSlider  != null ? saturationSlider.value  : PlayerPrefs.GetFloat(K_SATURATION,  0.5f);
+        float b = brightnessSlider  != null ? brightnessSlider.value  : PlayerPrefs.GetFloat(EldoriaPrefsKeys.Brightness,  0.5f);
+        float c = contrastSlider    != null ? contrastSlider.value    : PlayerPrefs.GetFloat(EldoriaPrefsKeys.Contrast,    0.5f);
+        float s = saturationSlider  != null ? saturationSlider.value  : PlayerPrefs.GetFloat(EldoriaPrefsKeys.Saturation,  0.5f);
         ScreenEffectsManager.Apply(b, c, s);
     }
 
     // ── Audio ─────────────────────────────────────────────────────────────
     private void SetupSonido()
     {
-        SetupVolumeSlider(masterVolumeSlider, K_MASTER_VOL, 1f, vol =>
+        SetupVolumeSlider(masterVolumeSlider, EldoriaPrefsKeys.MasterVolume, 1f, vol =>
         {
             // Read slider value from memory, not PlayerPrefs — avoids AudioManager contaminating these keys
-            float m = musicSlider != null ? musicSlider.value : GetPref(K_MUSIC_VOL, 1f);
-            float s = sfxSlider   != null ? sfxSlider.value   : GetPref(K_SFX_VOL,   1f);
+            float m = musicSlider != null ? musicSlider.value : GetPref(EldoriaPrefsKeys.MusicVolume, 1f);
+            float s = sfxSlider   != null ? sfxSlider.value   : GetPref(EldoriaPrefsKeys.SFXVolume,   1f);
             AudioManager.Instance?.SetMusicVolume(vol * m);
             AudioManager.Instance?.SetSFXVolume(vol * s);
         });
 
-        SetupVolumeSlider(musicSlider, K_MUSIC_VOL, 1f, vol =>
+        SetupVolumeSlider(musicSlider, EldoriaPrefsKeys.MusicVolume, 1f, vol =>
         {
-            AudioManager.Instance?.SetMusicVolume(vol * GetPref(K_MASTER_VOL, 1f));
+            AudioManager.Instance?.SetMusicVolume(vol * GetPref(EldoriaPrefsKeys.MasterVolume, 1f));
             OnMusicVolumeChanged?.Invoke(vol);
         });
 
-        SetupVolumeSlider(sfxSlider, K_SFX_VOL, 1f, vol =>
+        SetupVolumeSlider(sfxSlider, EldoriaPrefsKeys.SFXVolume, 1f, vol =>
         {
-            AudioManager.Instance?.SetSFXVolume(vol * GetPref(K_MASTER_VOL, 1f));
+            AudioManager.Instance?.SetSFXVolume(vol * GetPref(EldoriaPrefsKeys.MasterVolume, 1f));
             OnSFXVolumeChanged?.Invoke(vol);
         });
 
-        SetupVolumeSlider(voicesSlider, K_VOICES_VOL, 1f, _ => { });
-        SetupVolumeSlider(uiSlider,     K_UI_VOL,     1f, _ => { });
+        SetupVolumeSlider(voicesSlider, EldoriaPrefsKeys.VoicesVolume, 1f, _ => { });
+        SetupVolumeSlider(uiSlider,     EldoriaPrefsKeys.UIVolume,     1f, _ => { });
     }
 
     private void SetupVolumeSlider(Slider s, string key, float def, System.Action<float> onChange)
@@ -354,19 +334,19 @@ public class SettingsManager : MonoBehaviour
         if (languageSelector != null)
         {
             languageSelector.SetOptions(new List<string> { "Español", "English" });
-            int savedLang = PlayerPrefs.GetInt(K_LANGUAGE, 0);
+            int savedLang = PlayerPrefs.GetInt(EldoriaPrefsKeys.Language, 0);
             languageSelector.value = savedLang;
             LocalizationManager.SetLanguage(savedLang);
             languageSelector.onValueChanged += idx =>
             {
-                PlayerPrefs.SetInt(K_LANGUAGE, idx);
+                PlayerPrefs.SetInt(EldoriaPrefsKeys.Language, idx);
                 LocalizationManager.SetLanguage(idx);
             };
         }
 
         if (showFpsToggle != null)
         {
-            showFpsToggle.isOn = PlayerPrefs.GetInt(K_SHOW_FPS, 0) == 1;
+            showFpsToggle.isOn = PlayerPrefs.GetInt(EldoriaPrefsKeys.ShowFPS, 0) == 1;
             showFpsToggle.onValueChanged.AddListener(on => FpsCounter.SetVisible(on));
         }
     }

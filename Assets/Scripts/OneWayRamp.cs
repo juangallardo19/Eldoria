@@ -29,7 +29,7 @@ public class OneWayRamp : MonoBehaviour
 
     private Collider2D   _playerCol;
     private bool         _dropping;
-    private bool         _rampColliding;  // estado de histéresis
+    private bool         _rampColliding;  // hysteresis state
 
     void Awake()
     {

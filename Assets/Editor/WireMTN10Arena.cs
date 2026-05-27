@@ -3,11 +3,11 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 
-// Configura las barreras de arena en MTN10:
-//  - Añade ArenaBarrier a los ArenaWall que tienen BoxCollider2D
-//  - Los desactiva por defecto (el jugador puede pasar antes de que el boss despierte)
-//  - Elimina los ArenaWall vacíos en (0,0,0) que son placeholders sin utilidad
-// Menú: Eldoria/Boss/4 - Wire MTN10 Arena Barriers
+// Sets up arena barriers in MTN10:
+//  - Adds ArenaBarrier to ArenaWalls that have a BoxCollider2D
+//  - Disables them by default (player can pass through before the boss wakes)
+//  - Removes empty ArenaWalls at (0,0,0) that are useless placeholders
+// Menu: Eldoria/Boss/4 - Wire MTN10 Arena Barriers
 public static class WireMTN10Arena
 {
     [MenuItem("Eldoria/Boss/4 - Wire MTN10 Arena Barriers")]
@@ -16,15 +16,15 @@ public static class WireMTN10Arena
         var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
         if (scene.name != "MTN10")
         {
-            EditorUtility.DisplayDialog("Eldoria", "Abre MTN10 antes de ejecutar.", "OK");
+            EditorUtility.DisplayDialog("Eldoria", "Open MTN10 before running.", "OK");
             return;
         }
 
         int fixed_count    = 0;
         int removed_count  = 0;
 
-        // Buscar TODOS los GameObjects con nombre "ArenaWall_Left" o "ArenaWall_Right"
-        // incluidos los inactivos
+        // Search ALL GameObjects named "ArenaWall_Left" or "ArenaWall_Right"
+        // including inactive ones
         var all = Resources.FindObjectsOfTypeAll<GameObject>();
         foreach (var go in all)
         {
@@ -40,7 +40,7 @@ public static class WireMTN10Arena
                 continue;
             }
 
-            // Real barrier: añadir ArenaBarrier si no tiene, y desactivar GO
+            // Real barrier: add ArenaBarrier if missing, then deactivate the GO
             if (go.GetComponent<ArenaBarrier>() == null)
                 go.AddComponent<ArenaBarrier>();
 
@@ -52,8 +52,8 @@ public static class WireMTN10Arena
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
 
-        Debug.Log($"[WireMTN10Arena] ✓ {fixed_count} barreras configuradas (inactivas por defecto), " +
-                  $"{removed_count} placeholders eliminados. Listo.");
+        Debug.Log($"[WireMTN10Arena] ✓ {fixed_count} barriers configured (inactive by default), " +
+                  $"{removed_count} placeholders removed. Done.");
     }
 }
 #endif

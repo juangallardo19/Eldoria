@@ -6,8 +6,8 @@ using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// Antes de cada build: abre MTN10, inyecta los 7 frames del boomerang en BossObsesion
-// y guarda la escena. Evita el fallback naranja en builds standalone.
+// Before each build: opens MTN10, injects the 7 boomerang frames into BossObsesion
+// and saves the scene. Prevents the orange fallback in standalone builds.
 public class BossBoomerangBuildPreProcess : IPreprocessBuildWithReport
 {
     public int callbackOrder => 0;
@@ -26,12 +26,12 @@ public class BossBoomerangBuildPreProcess : IPreprocessBuildWithReport
 
         if (sprites.Count == 0)
         {
-            Debug.LogWarning("[BossBoomerangBuildPreProcess] No se encontraron sprites en: " + SPRITE_PATH);
+            Debug.LogWarning("[BossBoomerangBuildPreProcess] No sprites found at: " + SPRITE_PATH);
             return;
         }
 
-        // Si MTN10 ya está cargada como única escena, no podemos cerrarla directamente.
-        // La abrimos siempre en modo Additive; si ya estaba cargada reutilizamos la existente.
+        // If MTN10 is already loaded as the only scene we cannot close it directly.
+        // Always open in Additive mode; if it was already loaded reuse the existing instance.
         bool alreadyLoaded = false;
         UnityEngine.SceneManagement.Scene scene = default;
         for (int i = 0; i < UnityEditor.SceneManagement.EditorSceneManager.sceneCount; i++)
@@ -44,7 +44,7 @@ public class BossBoomerangBuildPreProcess : IPreprocessBuildWithReport
 
         if (!scene.IsValid() || !scene.isLoaded)
         {
-            Debug.LogWarning("[BossBoomerangBuildPreProcess] MTN10 no pudo cargarse durante el build. Los frames de boomerang no se inyectarán automáticamente.");
+            Debug.LogWarning("[BossBoomerangBuildPreProcess] MTN10 could not be loaded during the build. Boomerang frames will not be injected automatically.");
             return;
         }
 
@@ -59,7 +59,7 @@ public class BossBoomerangBuildPreProcess : IPreprocessBuildWithReport
             var prop = so.FindProperty("boomerangFrames");
             if (prop == null)
             {
-                Debug.LogWarning("[BossBoomerangBuildPreProcess] Campo 'boomerangFrames' no encontrado en BossObsesion.");
+                Debug.LogWarning("[BossBoomerangBuildPreProcess] Field 'boomerangFrames' not found on BossObsesion.");
                 break;
             }
 
@@ -75,14 +75,14 @@ public class BossBoomerangBuildPreProcess : IPreprocessBuildWithReport
         if (wired)
         {
             EditorSceneManager.SaveScene(scene);
-            Debug.Log($"[BossBoomerangBuildPreProcess] ✓ {sprites.Count} frames de boomerang inyectados en MTN10.");
+            Debug.Log($"[BossBoomerangBuildPreProcess] ✓ {sprites.Count} boomerang frames injected into MTN10.");
         }
         else
         {
-            Debug.LogWarning("[BossBoomerangBuildPreProcess] BossObsesion no encontrado en MTN10.");
+            Debug.LogWarning("[BossBoomerangBuildPreProcess] BossObsesion not found in MTN10.");
         }
 
-        // Solo cerrar si la abrimos nosotros (no si ya estaba cargada)
+        // Only close if we opened it (not if it was already loaded)
         if (!alreadyLoaded && EditorSceneManager.sceneCount > 1)
             EditorSceneManager.CloseScene(scene, false);
     }

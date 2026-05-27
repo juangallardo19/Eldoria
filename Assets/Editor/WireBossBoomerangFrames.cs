@@ -4,11 +4,11 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using System.Collections.Generic;
 
-// Asigna los frames del boomerang directamente en BossObsesion dentro de MTN10.
-// Esto permite que el boomerang funcione en builds (los sprites quedan serializados en la escena).
-// PROBLEMA RAÍZ: boomerangFrames no estaba asignado en el Inspector → en builds no hay
-//               AssetDatabase disponible → LoadFrames retorna null → recuadro naranja.
-// Menú: Eldoria/Boss/5 - Wire Boomerang Frames (MTN10)
+// Assigns boomerang frames directly to BossObsesion inside MTN10.
+// This allows the boomerang to work in builds (sprites become serialized in the scene).
+// ROOT CAUSE: boomerangFrames was not assigned in the Inspector → builds have no
+//             AssetDatabase → LoadFrames returns null → orange fallback box.
+// Menu: Eldoria/Boss/5 - Wire Boomerang Frames (MTN10)
 public static class WireBossBoomerangFrames
 {
     [MenuItem("Eldoria/Boss/5 - Wire Boomerang Frames (MTN10)")]
@@ -17,13 +17,13 @@ public static class WireBossBoomerangFrames
         var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
         if (scene.name != "MTN10")
         {
-            EditorUtility.DisplayDialog("Eldoria", "Abre MTN10 antes de ejecutar este script.", "OK");
+            EditorUtility.DisplayDialog("Eldoria", "Open MTN10 before running this script.", "OK");
             return;
         }
 
         const string SPRITE_PATH = "Assets/Sprites/Boss1Obsesion/Sprite Sheets/boomarang arms.png";
 
-        // Cargar todos los sub-sprites del sheet
+        // Load all sub-sprites from the sheet
         var assets = AssetDatabase.LoadAllAssetsAtPath(SPRITE_PATH);
         var sprites = new List<Sprite>();
         foreach (var a in assets)
@@ -32,15 +32,15 @@ public static class WireBossBoomerangFrames
         if (sprites.Count == 0)
         {
             EditorUtility.DisplayDialog("Eldoria",
-                "No se encontraron sub-sprites en boomarang arms.png.\n" +
-                "Verifica que Sprite Mode = Multiple en su Import Settings.", "OK");
+                "No sub-sprites found in boomarang arms.png.\n" +
+                "Make sure Sprite Mode = Multiple in its Import Settings.", "OK");
             return;
         }
 
         sprites.Sort((a, b) =>
             System.StringComparer.OrdinalIgnoreCase.Compare(a.name, b.name));
 
-        // Encontrar BossObsesion en la escena (incluso si está inactivo)
+        // Find BossObsesion in the scene (including inactive objects)
         var allGOs = Resources.FindObjectsOfTypeAll<BossObsesion>();
         BossObsesion boss = null;
         foreach (var b in allGOs)
@@ -48,11 +48,11 @@ public static class WireBossBoomerangFrames
 
         if (boss == null)
         {
-            Debug.LogError("[WireBossBoomerangFrames] No se encontró BossObsesion en MTN10.");
+            Debug.LogError("[WireBossBoomerangFrames] BossObsesion not found in MTN10.");
             return;
         }
 
-        // Asignar frames usando SerializedObject para que quede guardado en la escena
+        // Assign frames via SerializedObject so they are persisted in the scene
         var so   = new SerializedObject(boss);
         var prop = so.FindProperty("boomerangFrames");
         prop.arraySize = sprites.Count;
@@ -64,8 +64,8 @@ public static class WireBossBoomerangFrames
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
 
-        Debug.Log($"[WireBossBoomerangFrames] ✓ {sprites.Count} frames asignados a BossObsesion.boomerangFrames en MTN10. " +
-                  $"Ahora funciona en builds.");
+        Debug.Log($"[WireBossBoomerangFrames] ✓ {sprites.Count} frames assigned to BossObsesion.boomerangFrames in MTN10. " +
+                  $"Now works in builds.");
     }
 }
 #endif

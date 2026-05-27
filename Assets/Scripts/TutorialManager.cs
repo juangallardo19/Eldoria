@@ -204,7 +204,7 @@ public class TutorialManager : MonoBehaviour
         yield return null;
         ObjectiveArrow.Hide();
 
-        // Resume si el jugador salió y volvió ya en fase DurganApproach
+        // Resume if the player left and returned already in DurganApproach phase
         if (_phase == Phase.DurganApproach)
         {
             SetupDurganNPC();
@@ -243,7 +243,7 @@ public class TutorialManager : MonoBehaviour
         SetupDurganNPC();
     }
 
-    // Busca NPC_Durgan por nombre exacto, garantiza NPCInteract y se suscribe.
+    // Finds NPC_Durgan by exact name, ensures NPCInteract is present, and subscribes.
     void SetupDurganNPC()
     {
         var go = GameObject.Find("NPC_Durgan");
@@ -261,31 +261,31 @@ public class TutorialManager : MonoBehaviour
     {
         yield return null;
 
-        // RunHint: animar al jugador a correr hacia Liara
+        // RunHint: prompt the player to run toward Liara
         _phase = Phase.RunHint;
         TutorialHint.Show($"¡Ve al Mirador de Liara!  Mantén  [ {K("Run", KeyCode.LeftShift)} ]  para correr");
         yield return new WaitForSecondsRealtime(3.5f);
 
-        // MapHint: abrir WorldMap para ver HV05
+        // MapHint: open WorldMap to locate HV05
         _phase = Phase.MapHint;
         TutorialHint.Show("Presiona  [ M ]  para ver el mapa — localiza el Mirador de Liara");
         WorldMapController.Instance?.SetTutorialObjective("HUB05");
 
-        // Esperar a que el jugador abra el mapa
+        // Wait for the player to open the map
         yield return new WaitUntil(() =>
             WorldMapController.Instance != null && WorldMapController.Instance.IsOpen);
         TutorialHint.Hide();
 
-        // Esperar a que lo cierre
+        // Wait for the player to close the map
         yield return new WaitUntil(() =>
             WorldMapController.Instance == null || !WorldMapController.Instance.IsOpen);
 
         yield return new WaitForSecondsRealtime(0.4f);
 
-        // LiaraApproach: flecha hacia el interior (puerta de KaelHouse, ruta al hub)
+        // LiaraApproach: arrow toward the interior (KaelHouse door, route to the hub)
         _phase = Phase.LiaraApproach;
         TutorialHint.Show("Ve al Mirador de Liara — Zona B  [ M ] para el mapa");
-        ObjectiveArrow.Show(new Vector3(78f, -30f, 0f)); // salida derecha → HV02 → Liara
+        ObjectiveArrow.Show(new Vector3(78f, -30f, 0f)); // right exit → HV02 → Liara
     }
 
     // ── Liara tutorial (HV05) ─────────────────────────────────────────────────
@@ -297,7 +297,7 @@ public class TutorialManager : MonoBehaviour
         TutorialHint.Hide();
         WorldMapController.Instance?.ClearTutorialObjective();
 
-        // Resume si el jugador salió y volvió ya en fase LiaraDialogue
+        // Resume if the player left and returned already in LiaraDialogue phase
         if (_phase == Phase.LiaraDialogue)
         {
             SetupLiaraNPC();
@@ -307,7 +307,7 @@ public class TutorialManager : MonoBehaviour
         SetupLiaraNPC();
     }
 
-    // Busca NPC_Lyara por nombre exacto, garantiza NPCInteract y se suscribe.
+    // Finds NPC_Lyara by exact name, ensures NPCInteract is present, and subscribes.
     void SetupLiaraNPC()
     {
         var go = GameObject.Find("NPC_Lyara");
@@ -319,7 +319,7 @@ public class TutorialManager : MonoBehaviour
         TutorialHint.Show("Habla con Liara  [ E ]");
     }
 
-    // ── Segmentos de diálogo interior ─────────────────────────────────────────
+    // ── Interior dialogue segments ────────────────────────────────────────────
 
     DialogueManager.DialoguePage[] BuildSegmentIntro()
     {
@@ -366,7 +366,7 @@ public class TutorialManager : MonoBehaviour
         };
     }
 
-    // ── Diálogo de Durgan ─────────────────────────────────────────────────────
+    // ── Durgan dialogue ───────────────────────────────────────────────────────
 
     void StartDurganDialogue()
     {
@@ -397,7 +397,7 @@ public class TutorialManager : MonoBehaviour
         };
     }
 
-    // ── Diálogo de Liara ──────────────────────────────────────────────────────
+    // ── Liara dialogue ────────────────────────────────────────────────────────
 
     void StartLiaraDialogue()
     {
@@ -455,7 +455,7 @@ public class TutorialManager : MonoBehaviour
         }
     }
 
-    // ── Ara lidera hacia las Montañas (post-Liara) ────────────────────────────
+    // ── Ara leads toward the Mountains (post-Liara) ───────────────────────────
 
     IEnumerator StartAraLeads()
     {
@@ -466,7 +466,7 @@ public class TutorialManager : MonoBehaviour
         ObjectiveArrow.Show(new Vector3(-9999f, -15f, 0f));
     }
 
-    // ── Santuario de Ara — MTN03 ──────────────────────────────────────────────
+    // ── Ara Sanctuary — MTN03 ────────────────────────────────────────────────
 
     IEnumerator BeginSanctuaryTutorial()
     {
@@ -524,7 +524,7 @@ public class TutorialManager : MonoBehaviour
         npc.OnInteract += cb;
     }
 
-    // ── Diálogo: Ara lidera hacia las Montañas ─────────────────────────────────
+    // ── Dialogue: Ara leads toward the Mountains ──────────────────────────────
 
     DialogueManager.DialoguePage[] BuildAraLeadsDialogue()
     {
@@ -539,7 +539,7 @@ public class TutorialManager : MonoBehaviour
         };
     }
 
-    // ── Diálogo: Primer Santuario (MTN03) ──────────────────────────────────────
+    // ── Dialogue: First Sanctuary (MTN03) ────────────────────────────────────
 
     DialogueManager.DialoguePage[] BuildSanctuaryDialogue()
     {
@@ -559,7 +559,7 @@ public class TutorialManager : MonoBehaviour
         };
     }
 
-    // ── Diálogos idle post-tutorial ────────────────────────────────────────────
+    // ── Post-tutorial idle dialogues ──────────────────────────────────────────
 
     DialogueManager.DialoguePage[] BuildDurganIdleDialogue()
     {
